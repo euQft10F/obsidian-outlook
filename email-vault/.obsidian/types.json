@@ -1,0 +1,23 @@
+{
+  "types": {
+    "date": "datetime",
+    "due": "date",
+    "last_activity": "date",
+    "first_seen": "date",
+    "last_seen": "date",
+    "updated": "date",
+    "asked": "date",
+    "to": "multitext",
+    "cc": "multitext",
+    "participants": "multitext",
+    "sources": "multitext",
+    "thread_ids": "multitext",
+    "emails": "multitext",
+    "domains": "multitext",
+    "people": "multitext",
+    "threads": "multitext",
+    "aliases": "aliases",
+    "tags": "tags",
+    "has_attachments": "checkbox"
+  }
+}

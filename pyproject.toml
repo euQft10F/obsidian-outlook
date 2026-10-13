@@ -1,0 +1,18 @@
+[project]
+name = "email-vault"
+version = "0.1.0"
+description = "Outlook .msg -> Obsidian LLM wiki: export, convert and lint scripts"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "extract-msg>=0.55",                       # Outlook .msg parsing
+    "markdownify>=0.13",                       # HTML-only emails -> markdown
+    "pypdf>=5",                                # text from PDF attachments
+    "python-docx>=1.1",                        # text from .docx attachments
+    "openpyxl>=3.1",                           # text from .xlsx attachments
+    "pywin32>=306; sys_platform == 'win32'",   # Outlook COM export (tools/export_outlook_msg.py)
+]
+
+[tool.uv]
+# Scripts only, nothing to build or install as a package: `uv sync` just creates .venv with the dependencies.
+package = false

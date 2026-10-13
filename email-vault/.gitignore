@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.obsidian/workspace*.json
+.obsidian/cache
+# Uncomment if the vault repo is pushed anywhere and you don't want originals in it:
+# raw/msg/
+# raw/attachments/

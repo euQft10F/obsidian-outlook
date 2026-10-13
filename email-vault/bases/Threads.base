@@ -1,0 +1,59 @@
+filters:
+  and:
+    - file.inFolder("wiki/threads")
+    - 'type == "thread"'
+properties:
+  note.next_action:
+    displayName: Next action
+  note.last_activity:
+    displayName: Last activity
+views:
+  - type: table
+    name: I owe
+    filters:
+      and:
+        - 'status == "open"'
+    order:
+      - file.name
+      - next_action
+      - due
+      - last_activity
+      - participants
+    sort:
+      - property: due
+        direction: ASC
+  - type: table
+    name: Waiting on others
+    filters:
+      and:
+        - 'status == "waiting"'
+    order:
+      - file.name
+      - owner
+      - next_action
+      - due
+      - last_activity
+    sort:
+      - property: last_activity
+        direction: ASC
+  - type: table
+    name: Overdue
+    filters:
+      and:
+        - 'status != "closed"'
+        - 'due < today()'
+    order:
+      - file.name
+      - status
+      - due
+      - next_action
+  - type: table
+    name: All threads
+    order:
+      - file.name
+      - status
+      - project
+      - last_activity
+    sort:
+      - property: last_activity
+        direction: DESC

@@ -1,0 +1,66 @@
+filters:
+  and:
+    - file.inFolder("raw/emails")
+    - 'type == "email"'
+properties:
+  note.from:
+    displayName: From
+  note.subject:
+    displayName: Subject
+  note.date:
+    displayName: Date
+  note.has_attachments:
+    displayName: Att.
+  note.wiki_status:
+    displayName: Wiki
+views:
+  - type: table
+    name: Last 14 days
+    filters:
+      and:
+        - 'date > now() - "14 days"'
+    order:
+      - date
+      - from
+      - subject
+      - has_attachments
+      - wiki_status
+    sort:
+      - property: date
+        direction: DESC
+  - type: table
+    name: Not yet compiled
+    filters:
+      and:
+        - 'wiki_status == "pending"'
+    order:
+      - date
+      - from
+      - subject
+    sort:
+      - property: date
+        direction: ASC
+  - type: table
+    name: High importance
+    filters:
+      and:
+        - 'importance == "high"'
+    order:
+      - date
+      - from
+      - subject
+    sort:
+      - property: date
+        direction: DESC
+  - type: table
+    name: With attachments
+    filters:
+      and:
+        - has_attachments == true
+    order:
+      - date
+      - from
+      - subject
+    sort:
+      - property: date
+        direction: DESC

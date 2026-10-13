@@ -1,0 +1,31 @@
+filters:
+  and:
+    - file.inFolder("wiki/people")
+    - 'type == "person"'
+formulas:
+  days_since: '((now() - date(last_seen)) / 86400000).round(0)'
+properties:
+  formula.days_since:
+    displayName: Days since last email
+views:
+  - type: table
+    name: People
+    order:
+      - file.name
+      - org
+      - role
+      - emails
+      - last_seen
+      - formula.days_since
+    sort:
+      - property: last_seen
+        direction: DESC
+  - type: cards
+    name: By organisation
+    groupBy:
+      property: org
+      direction: ASC
+    order:
+      - file.name
+      - role
+      - last_seen

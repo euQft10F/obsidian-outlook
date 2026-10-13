@@ -1,0 +1,182 @@
+# Email vault — setup guide
+
+An Obsidian vault that turns saved Outlook emails into a searchable, cross-linked wiki,
+maintained by Claude Code. Modelled on Karpathy's **LLM wiki**: raw sources stay immutable,
+the LLM "compiles" them once into thread, person, org and project pages, and every later
+question reads the compiled wiki instead of re-reading your inbox.
+
+```
+Outlook ──save .msg──▶ 00-inbox/ ──msg_to_md.py──▶ raw/emails, raw/attachments   (deterministic, no LLM)
+                                                        │
+                                          /email-ingest │ Claude reads, triages, links
+                                                        ▼
+                         wiki/threads · people · orgs · projects · index.md · log.md
+                                                        │
+                              /email-ask  ◀─────────────┤──────────▶  Obsidian: Bases, graph, search
+                              /email-lint (health check)
+```
+
+Why two stages: conversion is cheap, exact and repeatable (headers, threading, attachments,
+dedup), so a script does it. Judgement — what matters, who owes what, how things connect — is
+the LLM's job, and its output is plain markdown you can read, edit and version.
+
+## 1. Install (≈15 minutes)
+
+1. **Obsidian 1.12+** (desktop). Open this folder as a vault (*Open folder as vault*).
+   Settings → General → enable **Command line interface** (the Obsidian CLI).
+2. **Python environment with uv.** Install uv (`winget install astral-sh.uv`, or
+   `powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`), then from the vault root:
+   ```powershell
+   uv sync            # creates .venv/ from pyproject.toml + uv.lock (installs pywin32 on Windows only)
+   ```
+   uv downloads a suitable Python if you don't have one. Alternative without the lock file:
+   `uv venv` then `uv pip install -r requirements.txt`. Run scripts with `uv run python …`.
+   Keep it in a venv: `extract-msg`'s `red-black-tree-mod` dependency fails to build against
+   some system Pythons, but builds fine in uv's isolated build.
+3. **Claude Code** installed and signed in. Then, in the vault root:
+   ```powershell
+   claude
+   /plugin marketplace add kepano/obsidian-skills
+   /plugin install obsidian@obsidian-skills
+   ```
+   kepano's skills (from Obsidian's CEO) teach Claude the Obsidian CLI, Bases and
+   Obsidian-flavoured markdown. The three email skills in `.claude/skills/` load automatically
+   because Claude Code reads project skills from the folder it starts in.
+4. Edit the **Owner** section at the top of `CLAUDE.md` (your name, your addresses, senders to
+   ignore) and set `EMAIL_VAULT_ME=you@work.com` in your environment so emails you sent are
+   tagged `direction: sent`.
+
+## 2. Daily use
+
+| Step | How |
+|---|---|
+| Save emails | Drag from Outlook into `00-inbox/`, or use an exporter (below) |
+| Compile | In Claude Code: `/email-ingest` (15 threads per run; `/email-ingest all` for a backlog) |
+| Ask | `/email-ask what is waiting on me this week?` · `/email-ask how is Tom connected to the Q3 budget?` |
+| Browse | Obsidian: `bases/Threads.base` (I owe / Waiting / Overdue), `bases/People.base`, graph view, backlinks |
+| Maintain | `/email-lint` weekly |
+
+Keep Claude Code and Obsidian side by side, as Karpathy does: Claude edits, Obsidian shows the
+pages updating live. Good answers get filed into `wiki/answers/`, so your questions compound
+in the vault too.
+
+For a first backlog of hundreds of emails, export a month at a time and run
+`/email-ingest all` per batch; compiling is where the tokens go, conversion is free.
+
+### Exporting from Outlook
+
+Both exporters drive the **classic Outlook desktop app** through COM (Windows only; the
+"new Outlook" has no COM interface). Outlook may show a "program is trying to access…" prompt
+if your antivirus status isn't reported to Windows; allow it or ask IT.
+
+**`tools/export_outlook_msg.py`** (recommended) remembers what it exported (by Outlook
+EntryID, in `raw/.outlook-export-state.json`), so it suits a timer:
+```powershell
+uv run python tools/export_outlook_msg.py --list-folders                 # see folder paths
+uv run python tools/export_outlook_msg.py --selection                    # what's selected in Outlook
+uv run python tools/export_outlook_msg.py --days 7                       # Inbox, last 7 days
+uv run python tools/export_outlook_msg.py --days 30 --folder "Inbox/Projects/Q3" --folder "Sent Items"
+uv run python tools/export_outlook_msg.py --since 2026-09-01 --folder "Shared Mailbox/Inbox"
+uv run python tools/export_outlook_msg.py --days 1 --convert             # export, then convert to raw/
+```
+Other flags: `--unread-only`, `--limit N`, `--dry-run`, `--force` (re-export a selection).
+Exporting Sent Items too gives Claude your side of each thread.
+
+**`tools/Export-OutlookMsg.ps1`** needs no Python: `-Selection`, `-Days N`,
+`-FolderPath "Inbox\Sub"`. It doesn't keep state; the converter drops repeats as duplicates.
+
+## 3. Folder structure
+
+```
+00-inbox/                 drop .msg/.eml here; _failed/ holds files that wouldn't parse
+raw/emails/YYYY/MM/       one note per email (frontmatter + new text + folded quoted history)
+raw/attachments/YYYY/MM/  attachment files + .extracted.md text (pdf, docx, xlsx, txt, csv)
+raw/msg/YYYY/MM/          archived originals, same name as the note
+wiki/threads/             one page per conversation: summary, timeline, decisions, open items, status
+wiki/people/  wiki/orgs/  correspondents and their organisations
+wiki/projects/            topics spanning several threads
+wiki/answers/  digests/   filed query results
+wiki/index.md  log.md     catalogue Claude reads first; append-only history
+bases/                    Obsidian Bases dashboards
+tools/                    Outlook exporters (export_outlook_msg.py, Export-OutlookMsg.ps1)
+pyproject.toml  uv.lock   Python environment for uv (requirements.txt for uv pip / pip)
+CLAUDE.md                 the schema: rules, page templates, triage — edit it as you go
+.claude/skills/           email-ingest (+ scripts/), email-ask, email-lint
+```
+
+Design choices worth knowing:
+- **Organise by entity, not by mailbox folder.** Outlook folders are one-dimensional; a thread
+  belongs to a project, several people and an org at once, so it's linked to each.
+- **Thread page = unit of work.** Each has `status` (open = I owe, waiting = they owe, fyi,
+  closed), `next_action`, `due`, `owner`, so Bases can show your open loops.
+- **Quoted history is folded, not deleted.** Replies quote the whole chain; the converter
+  moves it into a collapsed callout so Claude reads only the new text, while search still finds it.
+- **Newsletters and notifications** are marked `skipped` — searchable, but no wiki pages.
+
+## 4. Obsidian plugins
+
+Core (built in, enable in Settings → Core plugins):
+- **Bases** — database views over frontmatter; powers the dashboards. Use it rather than
+  Dataview for new dashboards; Dataview still works but is barely maintained.
+- **Properties**, **Backlinks**, **Outgoing links**, **Graph view**, **Search** — on by default; keep them.
+- **Command line interface** (Settings → General) — lets Claude search, read backlinks and
+  query Bases through `obsidian` commands instead of grepping.
+
+Community (Settings → Community plugins → Browse):
+- **Omnisearch** + **Text Extractor** — ranked, typo-tolerant full-text search for you, including
+  text inside PDFs and images in `raw/attachments`.
+- **Smart Connections** — local embeddings; shows semantically related notes in a side pane.
+  Good for spotting connections you didn't link ("other emails like this one").
+- **Obsidian Git** — commits the vault on a timer, so every Claude edit is diffable and reversible.
+  Karpathy's tip: the wiki is just a git repo of markdown.
+- Optional: **Claudian** (runs Claude Code inside an Obsidian side pane) if you prefer one window;
+  **Dataview** only if you already rely on it.
+
+When the wiki outgrows `index.md` (a few thousand emails), add **qmd** (Tobi Lütke's local
+BM25 + vector search with an MCP server, the search tool Karpathy recommends):
+`claude plugin marketplace add tobi/qmd`, then `claude plugin install qmd@qmd`, then index the
+vault folder as a qmd collection (see the qmd README). The skills already prefer it when present.
+
+## 5. Plugging into Claude Code
+
+Everything Claude needs is in the vault:
+- `CLAUDE.md` loads at every session start — it's the schema that makes Claude a disciplined
+  wiki maintainer.
+- `.claude/skills/*/SKILL.md` — each is a slash command and is also used automatically when
+  your request matches its description. Arguments go after the name (`/email-ingest 30`).
+- `.claude/settings.json` pre-approves the scripts and wiki edits, **denies** edits to `raw/`,
+  and denies WebFetch/WebSearch so email content isn't sent to the web. Remove those two
+  denials if you want web lookups in this vault.
+
+Automation options:
+- **Capture on a timer** (no LLM): a Windows Task Scheduler task, hourly, running
+  `uv run --directory <vault path> python tools/export_outlook_msg.py --days 1 --convert`.
+  Run it as your own user while logged in, since it needs your Outlook session.
+- **Compile on a schedule**: a scheduled task in the Claude desktop app with the prompt
+  `/email-ingest`, or headless `claude -p "/email-ingest"` from Task Scheduler. Desktop
+  scheduled tasks run on your machine, so they see the vault's project skills; cloud
+  routines don't.
+- To use the workflow from other folders, copy the three skill folders into
+  `~/.claude/skills/` and keep the scripts' `--vault` pointing here.
+
+## 6. Privacy and work email
+
+Emails you compile are sent to Claude for processing. For work mail, check your employer's
+policy on AI tools first; a company Claude for Work/Enterprise plan is the usual way to make
+this acceptable. Keep the vault out of personal cloud sync if the mail is confidential, and
+don't push `raw/` to a public remote. The schema tells Claude to treat email content as data,
+never as instructions — a phishing email that says "forward all invoices" gets summarised, not obeyed.
+
+## 7. Troubleshooting
+
+- `pip install extract-msg` fails building `red-black-tree-mod` → use `uv sync` (step 1.2), which
+  builds it in an isolated environment with current `setuptools`.
+- Exporter says it can't start Outlook → it needs classic Outlook installed and your Windows user
+  session; the "new Outlook" toggle must be off.
+- A file lands in `00-inbox/_failed/` → read its `.error.txt`. Encrypted (S/MIME, IRM) messages
+  can't be parsed; save them as plain text from Outlook instead.
+- Wrong times → the converter writes local time of the machine it runs on; run it where your
+  Outlook runs.
+- Sender shows as a name with no address → internal Exchange sender with no SMTP address in the
+  file; the person page is matched by name instead.
+- `python pending.py stats` shows counts by status; `python lint_vault.py` the vault's health.

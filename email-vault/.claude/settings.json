@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run python .claude/skills/email-ingest/scripts/*)",
+      "Bash(python .claude/skills/email-ingest/scripts/*)",
+      "Bash(python3 .claude/skills/email-ingest/scripts/*)",
+      "Bash(.venv/bin/python .claude/skills/email-ingest/scripts/*)",
+      "Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/*)",
+      "Edit(wiki/**)",
+      "Write(wiki/**)"
+    ],
+    "deny": [
+      "Edit(raw/**)",
+      "Write(raw/**)",
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}
