@@ -10,6 +10,7 @@
       "Bash(.venv/bin/python .claude/skills/email-ingest/scripts/msg_to_md.py*)",
       "Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py*)",
       "Bash(.venv/bin/python .claude/skills/email-ingest/scripts/lint_vault.py*)",
+      "Bash(uv run --frozen ruff*)",
       "Edit(wiki/**)",
       "Write(wiki/**)"
     ],
@@ -28,6 +29,19 @@
       "mcp__claude_ai_Gmail",
       "mcp__claude_ai_Google_Drive",
       "mcp__claude-in-chrome"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --frozen python .claude/hooks/ruff_check.py"
+          }
+        ]
+      }
     ]
   }
 }

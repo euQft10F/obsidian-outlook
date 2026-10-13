@@ -1,0 +1,4 @@
+# Sample mail and tooling folders outside the vault: never commit.
+dummy_emails/
+.claude/worktrees/
+.idea/

@@ -147,4 +147,6 @@ Prefixes: `ingest`, `query`, `lint`, `edit`. `grep "^## \[" wiki/log.md | tail -
 - Search: Grep on `raw/emails` frontmatter for exact fields (`^from_email: "x@y"`, `^date: 2026-10`),
   Grep on `wiki/` for concepts. If the `qmd` tool or the Obsidian CLI skill is available, use it for
   ranked/semantic search and backlinks.
+- Lint: a PostToolUse hook (`.claude/hooks/ruff_check.py`) runs `ruff check` on every `.py` file after
+  Edit/Write and reports violations back; run `uv run --frozen ruff check .` for the whole repo.
 - Workflows: `/email-ingest`, `/email-ask`, `/email-lint` (see `.claude/skills/`).
