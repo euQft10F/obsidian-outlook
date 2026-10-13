@@ -43,6 +43,11 @@ LOG_FILE = "raw/.ingest-log.jsonl"
 TEXT_EXTRACT_LIMIT = 200_000  # chars kept from an attachment's extracted text
 SMALL_INLINE_IMAGE = 20_000  # bytes; smaller inline images are usually signature logos
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".emz", ".wmz", ".tif", ".tiff", ".webp"}
+MAX_EXTRACT_BYTES = 25 * 1024 * 1024  # attachments above this are saved but never parsed
+# Executable / script attachments are saved with a ".blocked" suffix and never parsed.
+BLOCKED_EXT = {".exe", ".dll", ".js", ".jse", ".vbs", ".vbe", ".ps1", ".bat", ".cmd", ".lnk", ".scr",
+               ".jar", ".msi", ".hta", ".com", ".cpl", ".wsf", ".reg"}
+WINDOWS_RESERVED_RE = re.compile(r"^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$", re.I)
 
 SUBJECT_PREFIX_RE = re.compile(
     r"^\s*((re|fw|fwd|aw|wg|tr|sv|vs|rv|r|antw|odp|réf|ref)\s*(\[\d+\])?\s*:\s*|\[external\]\s*)+",
@@ -81,7 +86,8 @@ def safe_get(obj, attr, default=None):
 def sanitize_filename(s: str, max_len: int = 110) -> str:
     s = BAD_FILENAME_CHARS.sub(" ", s)
     s = re.sub(r"\s+", " ", s).strip(" .")
-    return (s[:max_len].rstrip(" .") or "untitled")
+    s = s[:max_len].rstrip(" .") or "untitled"
+    return f"_{s}" if WINDOWS_RESERVED_RE.match(s) else s
 
 
 def normalize_subject(subject: str) -> str:
@@ -487,12 +493,20 @@ class Converter:
                 if not (inl and Path(n).suffix.lower() in IMAGE_EXT and len(d) < SMALL_INLINE_IMAGE)]
         for name, data, _inline in kept:
             fname = sanitize_filename(name, 120)
+            blocked = Path(fname).suffix.lower() in BLOCKED_EXT
+            too_big = len(data) > MAX_EXTRACT_BYTES
+            if blocked:
+                fname += ".blocked"
             target = self._unique(att_dir / fname)
             line = f"- [[{self._rel(target)}|{fname}]] ({len(data) / 1024:.0f} KB)"
+            if blocked:
+                line += " · ⚠ executable type, not opened"
+            elif too_big:
+                line += " · ⚠ over size limit, text not extracted"
             if not self.dry:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(data)
-                text = clean(extract_attachment_text(target))
+                text = "" if (blocked or too_big) else clean(extract_attachment_text(target))
                 if text:
                     ext_note = target.with_name(target.name + ".extracted.md")
                     clipped = text[:TEXT_EXTRACT_LIMIT] + ("\n\n… (truncated)" if len(text) > TEXT_EXTRACT_LIMIT else "")
@@ -607,7 +621,12 @@ def main() -> int:
     me = a.me + [x.strip() for x in os.environ.get("EMAIL_VAULT_ME", "").split(",") if x.strip()]
     inbox = vault / "00-inbox"
     if a.files:
+        inbox_root = inbox.resolve()
         files = [Path(f).resolve() for f in a.files]
+        outside = [f for f in files if not f.is_relative_to(inbox_root)]
+        if outside:
+            print("refused: files must be inside 00-inbox/: " + ", ".join(str(f) for f in outside))
+            return 2
     else:
         files = sorted(f for f in inbox.rglob("*")
                        if f.suffix.lower() in (".msg", ".eml") and "_failed" not in f.parts)

@@ -4,13 +4,13 @@ description: Answer questions about the user's email - what someone said or aske
 argument-hint: "[question]"
 allowed-tools:
   - Read
+  - Write
+  - Edit
   - Glob
   - Grep
-  - Bash(uv run *)
-  - Bash(python *)
-  - Bash(python3 *)
-  - Bash(.venv/bin/python *)
-  - Bash(.venv/Scripts/python.exe *)
+  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/pending.py stats*)
+  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py stats*)
+  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py stats*)
 ---
 
 # Ask the email wiki
@@ -52,7 +52,8 @@ Keep the reply proportionate to the question.
 ## File it back
 
 If the answer is a synthesis worth keeping (a comparison, timeline, connection map, digest),
-offer to save it. When the user agrees, or asked to "save"/"file" it, write
+offer to save it. Write only after the user agrees or asked to "save"/"file" it, and touch
+only `wiki/answers/`, `wiki/digests/`, `wiki/index.md` and `wiki/log.md`. Then write
 `wiki/answers/YYYY-MM-DD <question>.md` (or `wiki/digests/YYYY-Www.md`) with
 `type: answer`/`digest` and `sources`, link it from related pages and `wiki/index.md`, and
 append `## [YYYY-MM-DD] query | <question>` to `wiki/log.md`.

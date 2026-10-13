@@ -30,7 +30,7 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
    uv sync            # creates .venv/ from pyproject.toml + uv.lock (installs pywin32 on Windows only)
    ```
    uv downloads a suitable Python if you don't have one. Alternative without the lock file:
-   `uv venv` then `uv pip install -r requirements.txt`. Run scripts with `uv run python …`.
+   `uv venv` then `uv pip install -r requirements.txt`. Run scripts with `uv run --frozen python …` (after `uv sync`).
    Keep it in a venv: `extract-msg`'s `red-black-tree-mod` dependency fails to build against
    some system Pythons, but builds fine in uv's isolated build.
 3. **Claude Code** installed and signed in. Then, in the vault root:
@@ -144,9 +144,18 @@ Everything Claude needs is in the vault:
   wiki maintainer.
 - `.claude/skills/*/SKILL.md` — each is a slash command and is also used automatically when
   your request matches its description. Arguments go after the name (`/email-ingest 30`).
-- `.claude/settings.json` pre-approves the scripts and wiki edits, **denies** edits to `raw/`,
-  and denies WebFetch/WebSearch so email content isn't sent to the web. Remove those two
-  denials if you want web lookups in this vault.
+- `.claude/settings.json` pre-approves only the three vault scripts (exact paths, run as
+  `uv run --frozen python …` or the `.venv` interpreter, so nothing is resolved or installed at
+  run time) and wiki edits. It **denies** edits to `raw/`, WebFetch/WebSearch, `curl`/`wget`/
+  `Invoke-WebRequest`, package installs, and the Gmail, Google Drive and Chrome connectors.
+  Each skill's `allowed-tools` is scoped to the scripts it actually uses.
+
+### Corporate-use notes
+- `raw/` is git-ignored: email bodies, attachments and originals are never committed.
+- `pending.py mark` only touches `type: email` notes under `raw/emails/`; `msg_to_md.py` only
+  accepts files inside `00-inbox/`.
+- Attachments of executable/script types are stored with a `.blocked` suffix and never parsed;
+  attachments over 25 MB are stored but not parsed.
 
 Automation options:
 - **Capture on a timer** (no LLM): a Windows Task Scheduler task, hourly, running

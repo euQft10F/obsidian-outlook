@@ -8,11 +8,12 @@ allowed-tools:
   - Edit
   - Glob
   - Grep
-  - Bash(uv run *)
-  - Bash(python *)
-  - Bash(python3 *)
-  - Bash(.venv/bin/python *)
-  - Bash(.venv/Scripts/python.exe *)
+  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/msg_to_md.py*)
+  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/pending.py*)
+  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/msg_to_md.py*)
+  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py*)
+  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/msg_to_md.py*)
+  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py*)
 ---
 
 # Email ingest

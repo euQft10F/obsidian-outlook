@@ -2,6 +2,6 @@
 __pycache__/
 .obsidian/workspace*.json
 .obsidian/cache
-# Uncomment if the vault repo is pushed anywhere and you don't want originals in it:
-# raw/msg/
-# raw/attachments/
+# Raw email content (bodies, attachments, originals, index/log) is corporate data: never commit it.
+# Consequence: wiki links to raw notes won't resolve in a fresh clone.
+raw/

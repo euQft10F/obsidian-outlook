@@ -138,8 +138,10 @@ Prefixes: `ingest`, `query`, `lint`, `edit`. `grep "^## \[" wiki/log.md | tail -
 
 ## Tools
 
-- Python: `uv run python <script>` from the vault root (the environment is managed by uv: `pyproject.toml`, `uv.lock`, `.venv/`).
+- Python: `uv run --frozen python <script>` from the vault root (the environment is managed by uv: `pyproject.toml`, `uv.lock`, `.venv/`;
+  `--frozen` stops uv resolving or installing anything at run time, so run `uv sync` yourself first).
   If uv is unavailable use `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python` (macOS/Linux).
+  Only the three scripts below are pre-approved; do not run other Python or install packages.
 - Scripts live in `.claude/skills/email-ingest/scripts/`:
   `msg_to_md.py` (convert inbox) · `pending.py` (list / mark / stats) · `lint_vault.py` (health report).
 - Search: Grep on `raw/emails` frontmatter for exact fields (`^from_email: "x@y"`, `^date: 2026-10`),

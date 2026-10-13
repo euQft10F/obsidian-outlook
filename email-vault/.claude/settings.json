@@ -1,11 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv run python .claude/skills/email-ingest/scripts/*)",
-      "Bash(python .claude/skills/email-ingest/scripts/*)",
-      "Bash(python3 .claude/skills/email-ingest/scripts/*)",
-      "Bash(.venv/bin/python .claude/skills/email-ingest/scripts/*)",
-      "Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/*)",
+      "Bash(uv run --frozen python .claude/skills/email-ingest/scripts/msg_to_md.py*)",
+      "Bash(uv run --frozen python .claude/skills/email-ingest/scripts/pending.py*)",
+      "Bash(uv run --frozen python .claude/skills/email-ingest/scripts/lint_vault.py*)",
+      "Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/msg_to_md.py*)",
+      "Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py*)",
+      "Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/lint_vault.py*)",
+      "Bash(.venv/bin/python .claude/skills/email-ingest/scripts/msg_to_md.py*)",
+      "Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py*)",
+      "Bash(.venv/bin/python .claude/skills/email-ingest/scripts/lint_vault.py*)",
       "Edit(wiki/**)",
       "Write(wiki/**)"
     ],
@@ -13,7 +17,17 @@
       "Edit(raw/**)",
       "Write(raw/**)",
       "WebFetch",
-      "WebSearch"
+      "WebSearch",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(Invoke-WebRequest*)",
+      "Bash(iwr *)",
+      "Bash(pip *)",
+      "Bash(uv add*)",
+      "Bash(uv pip*)",
+      "mcp__claude_ai_Gmail",
+      "mcp__claude_ai_Google_Drive",
+      "mcp__claude-in-chrome"
     ]
   }
 }

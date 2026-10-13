@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from vaultlib import find_vault, iter_notes, parse_frontmatter, set_frontmatter_field, utf8_stdout  # noqa: E402
 
 VALID = {"pending", "compiled", "skipped"}
+MAX_REASON_LEN = 40
 
 
 def load(vault: Path):
@@ -66,11 +67,24 @@ def cmd_mark(vault: Path, status: str, paths: list[str], reason: str | None) -> 
     if status not in VALID:
         print(f"status must be one of {sorted(VALID)}")
         return 2
+    if reason is not None and len(reason) > MAX_REASON_LEN:
+        print(f"--reason must be at most {MAX_REASON_LEN} characters")
+        return 2
     bad = 0
+    emails_root = (vault / "raw" / "emails").resolve()
     for raw in paths:
         p = (vault / raw) if not Path(raw).is_absolute() else Path(raw)
         if not p.suffix:
             p = p.with_suffix(".md")
+        p = p.resolve()
+        if not p.is_relative_to(emails_root) or p.suffix.lower() != ".md":
+            print(f"  ! refused (not under raw/emails/): {raw}")
+            bad += 1
+            continue
+        if p.exists() and parse_frontmatter(p.read_text(encoding="utf-8")).get("type") != "email":
+            print(f"  ! refused (not an email note): {raw}")
+            bad += 1
+            continue
         if not p.exists() or not set_frontmatter_field(p, "wiki_status", status):
             print(f"  ! not found or no frontmatter: {raw}")
             bad += 1
