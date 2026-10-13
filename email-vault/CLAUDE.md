@@ -1,6 +1,6 @@
 # Email wiki — schema
 
-This folder is an Obsidian vault and a Claude Code project. It follows Karpathy's LLM-wiki
+This folder is an Obsidian vault and a Claude Code project. It follows LLM-wiki
 pattern: immutable **raw** sources, an LLM-maintained **wiki**, and this **schema**.
 The human curates what goes in and asks questions; Claude does the summarising,
 cross-linking and bookkeeping. Co-evolve this file: when a convention changes, update it here.

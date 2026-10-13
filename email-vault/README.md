@@ -38,9 +38,11 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
    vendored in `.claude/skills/` (see `OBSIDIAN-SKILLS.md`), so nothing extra to install. They and
    the three email skills load automatically because Claude Code reads project skills from the
    folder it starts in.
-4. Edit the **Owner** section at the top of `CLAUDE.md` (your name, your addresses, senders to
-   ignore) and set `EMAIL_VAULT_ME=you@work.com` in your environment so emails you sent are
-   tagged `direction: sent`.
+4. **Replace the placeholders in the Owner section at the top of `CLAUDE.md`** with your name and
+   your own email address(es) (and any senders to ignore). Claude relies on this to know which
+   mailbox is yours, so it never creates a person page for you and treats mail you sent correctly.
+   Also set `EMAIL_VAULT_ME=you@work.com` in your environment so emails you sent are tagged
+   `direction: sent`; use the same address(es) in both places.
 
 ## 2. Daily use
 
