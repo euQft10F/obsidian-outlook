@@ -1,12 +1,12 @@
 {
   "file-explorer": true,
   "global-search": true,
-  "switcher": true,
+  "switcher": false,
   "graph": true,
   "backlink": true,
   "canvas": false,
   "outgoing-link": true,
-  "tag-pane": true,
+  "tag-pane": false,
   "footnotes": false,
   "properties": true,
   "page-preview": true,
@@ -15,7 +15,7 @@
   "note-composer": false,
   "command-palette": false,
   "slash-command": false,
-  "editor-status": true,
+  "editor-status": false,
   "bookmarks": true,
   "zk-prefixer": false,
   "random-note": false,
@@ -26,7 +26,7 @@
   "workspaces": false,
   "file-recovery": true,
   "publish": false,
-  "sync": true,
+  "sync": false,
   "bases": true,
   "webviewer": false
 }
