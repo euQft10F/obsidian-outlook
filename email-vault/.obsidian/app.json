@@ -1,0 +1,10 @@
+{
+  "userIgnoreFilters": [
+    "log",
+    "index",
+    "tests/",
+    "tools/",
+    "README.md",
+    "CLAUDE.md"
+  ]
+}
