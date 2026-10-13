@@ -13,6 +13,9 @@ dependencies = [
     "pywin32>=306; sys_platform == 'win32'",   # Outlook COM export (tools/export_outlook_msg.py)
 ]
 
+[dependency-groups]
+dev = ["pytest>=8"]
+
 [tool.uv]
 # Scripts only, nothing to build or install as a package: `uv sync` just creates .venv with the dependencies.
 package = false

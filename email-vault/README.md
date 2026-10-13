@@ -173,3 +173,4 @@ Automation options:
 - Sender shows as a name with no address → internal Exchange sender with no SMTP address in the
   file; the person page is matched by name instead.
 - `python pending.py stats` shows counts by status; `python lint_vault.py` the vault's health.
+- `uv run pytest` runs the exporter's tests (fake Outlook objects; no Outlook needed).
