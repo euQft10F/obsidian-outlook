@@ -33,15 +33,11 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
    `uv venv` then `uv pip install -r requirements.txt`. Run scripts with `uv run --frozen python …` (after `uv sync`).
    Keep it in a venv: `extract-msg`'s `red-black-tree-mod` dependency fails to build against
    some system Pythons, but builds fine in uv's isolated build.
-3. **Claude Code** installed and signed in. Then, in the vault root:
-   ```powershell
-   claude
-   /plugin marketplace add kepano/obsidian-skills
-   /plugin install obsidian@obsidian-skills
-   ```
-   kepano's skills (from Obsidian's CEO) teach Claude the Obsidian CLI, Bases and
-   Obsidian-flavoured markdown. The three email skills in `.claude/skills/` load automatically
-   because Claude Code reads project skills from the folder it starts in.
+3. **Claude Code** installed and signed in. Then run `claude` in the vault root.
+   kepano's Obsidian skills (obsidian-markdown, obsidian-bases, json-canvas, obsidian-cli) are
+   vendored in `.claude/skills/` (see `OBSIDIAN-SKILLS.md`), so nothing extra to install. They and
+   the three email skills load automatically because Claude Code reads project skills from the
+   folder it starts in.
 4. Edit the **Owner** section at the top of `CLAUDE.md` (your name, your addresses, senders to
    ignore) and set `EMAIL_VAULT_ME=you@work.com` in your environment so emails you sent are
    tagged `direction: sent`.

@@ -26,6 +26,8 @@
       "Bash(pip *)",
       "Bash(uv add*)",
       "Bash(uv pip*)",
+      "Bash(obsidian eval*)",
+      "Bash(obsidian * eval*)",
       "mcp__claude_ai_Gmail",
       "mcp__claude_ai_Google_Drive",
       "mcp__claude-in-chrome"

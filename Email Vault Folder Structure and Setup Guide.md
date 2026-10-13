@@ -96,7 +96,7 @@ Setup takes about 15 minutes once; after that the daily loop is export, `/email-
    - Run `setx EMAIL_VAULT_ME "you@work.com"` once, so emails you sent are tagged as sent. It takes effect in new terminals.
 6. **Start Claude Code** in the vault folder:
    - Run `claude` and accept the "trust this folder" prompt.
-   - Run `/plugin marketplace add kepano/obsidian-skills`, then `/plugin install obsidian@obsidian-skills`.
+   - The Obsidian skills (markdown, bases, canvas, CLI) are bundled in `.claude/skills/`; nothing to install.
    - Type `/` and check that `email-ingest`, `email-ask` and `email-lint` are listed.
 
 ### First run
