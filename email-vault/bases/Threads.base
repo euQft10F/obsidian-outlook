@@ -1,7 +1,7 @@
 filters:
   and:
     - file.inFolder("wiki/threads")
-    - 'type == "thread"'
+    - type == "thread"
 properties:
   note.next_action:
     displayName: Next action
@@ -12,7 +12,7 @@ views:
     name: I owe
     filters:
       and:
-        - 'status == "open"'
+        - status == "open"
     order:
       - file.name
       - next_action
@@ -26,7 +26,7 @@ views:
     name: Waiting on others
     filters:
       and:
-        - 'status == "waiting"'
+        - status == "waiting"
     order:
       - file.name
       - owner
@@ -40,8 +40,8 @@ views:
     name: Overdue
     filters:
       and:
-        - 'status != "closed"'
-        - 'due < today()'
+        - status != "closed"
+        - due < today()
     order:
       - file.name
       - status

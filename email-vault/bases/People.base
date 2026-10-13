@@ -1,9 +1,9 @@
 filters:
   and:
     - file.inFolder("wiki/people")
-    - 'type == "person"'
+    - type == "person"
 formulas:
-  days_since: '((now() - date(last_seen)) / 86400000).round(0)'
+  days_since: (now() - date(last_seen)).days.round(0)
 properties:
   formula.days_since:
     displayName: Days since last email

@@ -1,7 +1,7 @@
 filters:
   and:
     - file.inFolder("raw/emails")
-    - 'type == "email"'
+    - type == "email"
 properties:
   note.from:
     displayName: From
@@ -18,7 +18,7 @@ views:
     name: Last 14 days
     filters:
       and:
-        - 'date > now() - "14 days"'
+        - date > now() - "14 days"
     order:
       - date
       - from
@@ -32,7 +32,7 @@ views:
     name: Not yet compiled
     filters:
       and:
-        - 'wiki_status == "pending"'
+        - wiki_status == "pending"
     order:
       - date
       - from
@@ -44,7 +44,7 @@ views:
     name: High importance
     filters:
       and:
-        - 'importance == "high"'
+        - importance == "high"
     order:
       - date
       - from
