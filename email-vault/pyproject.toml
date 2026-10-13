@@ -14,8 +14,21 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "pytest>=8",
+    "ruff>=0.17.0",
+]
 
 [tool.uv]
 # Scripts only, nothing to build or install as a package: `uv sync` just creates .venv with the dependencies.
 package = false
+
+[tool.ruff]
+line-length = 120
+extend-exclude = [".venv", ".idea"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]  # long literal fixtures read better unwrapped

@@ -26,10 +26,12 @@ from pathlib import Path
 from typing import Any
 
 VAULT_ROOT = Path(__file__).resolve().parent.parent
-INBOX_DIRNAME = "00-inbox"
 STATE_RELATIVE_PATH = Path("raw") / ".outlook-export-state.json"
 CONVERTER_RELATIVE_PATH = Path(".claude/skills/email-ingest/scripts/msg_to_md.py")
 CONVERTER_BATCH_SIZE = 50  # keeps the converter's command line under Windows' length limit
+
+sys.path.insert(0, str(VAULT_ROOT / CONVERTER_RELATIVE_PATH.parent))  # shared helpers live beside the converter
+from vaultlib import INBOX_DIRNAME, find_vault, sanitize_filename, utf8_stdout  # noqa: E402
 
 OL_MSG_UNICODE = 9   # OlSaveAsType.olMSGUnicode
 OL_MAIL_ITEM = 43    # OlObjectClass.olMail (skips meeting requests, NDRs, tasks)
@@ -44,22 +46,12 @@ OL_DEFAULT_FOLDERS = {  # OlDefaultFolders
     "outbox": 4,
 }
 
-# Characters Windows forbids in file names, plus ones that break Obsidian [[links]] and tags.
-UNSAFE_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|#^\[\]\x00-\x1f]+')
-MAX_FILENAME_LENGTH = 100  # keeps full paths under Windows' 260-character limit
-
 
 class ExportError(Exception):
     """A problem the user can act on (Outlook missing, unknown folder, ...)."""
 
 
 # --------------------------------------------------------------------------- Outlook helpers
-
-def sanitize_filename(text: str) -> str:
-    text = UNSAFE_FILENAME_CHARS.sub(" ", text or "")
-    text = re.sub(r"\s+", " ", text).strip(" .")
-    return text[:MAX_FILENAME_LENGTH].rstrip(" .") or "untitled"
-
 
 def item_received_time(item: Any) -> dt.datetime:
     """Wall-clock time of an Outlook item (pywin32 tags local times as UTC; drop the tag)."""
@@ -217,9 +209,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--force", action="store_true",
                         help="with --selection: re-export emails even if they were exported before")
 
-    parser.add_argument("--vault", type=Path, default=VAULT_ROOT, metavar="DIR",
+    parser.add_argument("--vault", type=Path, metavar="DIR",
                         help="vault root, used for the default --output-dir, --state-file and --convert "
-                             "(default: the folder above tools/)")
+                             "(default: $CLAUDE_PROJECT_DIR, the vault containing the current folder, "
+                             "or the folder above tools/)")
     parser.add_argument("--output-dir", type=Path, metavar="DIR",
                         help=f"where to write .msg files (default: <vault>/{INBOX_DIRNAME})")
     parser.add_argument("--state-file", type=Path, metavar="FILE",
@@ -259,7 +252,7 @@ def convert_to_markdown(vault: Path, files: list[Path]) -> int:
 
 
 def run(args: argparse.Namespace) -> int:
-    vault = args.vault.resolve()
+    vault = find_vault(args.vault, default=VAULT_ROOT)
     output_dir = (args.output_dir or vault / INBOX_DIRNAME).resolve()
     state_path = (args.state_file or vault / STATE_RELATIVE_PATH).resolve()
 
@@ -316,6 +309,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    for stream in (sys.stdout, sys.stderr):  # subjects are arbitrary Unicode; don't crash legacy consoles
-        stream.reconfigure(encoding="utf-8", errors="replace")
+    utf8_stdout()  # subjects are arbitrary Unicode; don't crash legacy consoles
     sys.exit(main())

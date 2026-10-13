@@ -14,116 +14,168 @@ import argparse
 import json
 import sys
 from collections import defaultdict
+from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from vaultlib import find_vault, iter_notes, parse_frontmatter, set_frontmatter_field, utf8_stdout  # noqa: E402
+from vaultlib import Frontmatter, find_vault, iter_notes, parse_frontmatter, set_frontmatter_field, utf8_stdout
 
-VALID = {"pending", "compiled", "skipped"}
-MAX_REASON_LEN = 40
-
-
-def load(vault: Path):
-    for p in iter_notes(vault / "raw" / "emails"):
-        fm = parse_frontmatter(p.read_text(encoding="utf-8"))
-        if fm.get("type") == "email":
-            yield p, fm
+WIKI_STATUSES = ("pending", "compiled", "skipped")
+MAX_REASON_LENGTH = 40
+BYTES_PER_KB = 1000
 
 
-def cmd_list(vault: Path, limit: int | None, as_json: bool) -> None:
-    threads: dict[str, list] = defaultdict(list)
-    for p, fm in load(vault):
-        if fm.get("wiki_status", "pending") == "pending":
-            threads[fm.get("thread_id") or fm.get("thread_subject", "?")].append((p, fm))
-    groups = sorted(threads.values(), key=lambda g: min(str(fm.get("date")) for _, fm in g))
-    total = sum(len(g) for g in groups)
-    if limit:
-        groups = groups[:limit]
-    out = []
-    for g in groups:
-        g.sort(key=lambda x: str(x[1].get("date")))
-        out.append({
-            "thread_id": g[0][1].get("thread_id"),
-            "thread_subject": g[0][1].get("thread_subject"),
-            "emails": [{
-                "path": p.relative_to(vault).as_posix(),
-                "date": fm.get("date"),
-                "from": fm.get("from"),
-                "direction": fm.get("direction"),
-                "chars": p.stat().st_size,
-            } for p, fm in g],
-        })
+class MarkRefusedError(Exception):
+    """A path given to `mark` is not an email note we are willing to touch."""
+
+
+@dataclass(slots=True)
+class EmailNote:
+    path: Path
+    frontmatter: Frontmatter
+
+    @property
+    def date(self) -> str:
+        return str(self.frontmatter.get("date"))
+
+    @property
+    def wiki_status(self) -> str:
+        return str(self.frontmatter.get("wiki_status", "pending"))
+
+
+@dataclass(slots=True)
+class PendingThread:
+    thread_id: str | None
+    thread_subject: str | None
+    emails: list[EmailNote]
+
+
+def iter_email_notes(vault: Path) -> Iterator[EmailNote]:
+    for path in iter_notes(vault / "raw" / "emails"):
+        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8"))
+        if frontmatter.get("type") == "email":
+            yield EmailNote(path, frontmatter)
+
+
+def group_pending_by_thread(vault: Path) -> list[PendingThread]:
+    """Pending emails grouped per thread, oldest thread first and oldest email first within a thread."""
+    emails_by_thread: dict[str, list[EmailNote]] = defaultdict(list)
+    for note in iter_email_notes(vault):
+        if note.wiki_status == "pending":
+            frontmatter = note.frontmatter
+            thread_key = frontmatter.get("thread_id") or frontmatter.get("thread_subject", "?")
+            emails_by_thread[thread_key].append(note)
+    groups = sorted(emails_by_thread.values(), key=lambda emails: min(note.date for note in emails))
+    threads = []
+    for emails in groups:
+        emails.sort(key=lambda note: note.date)
+        first = emails[0].frontmatter
+        threads.append(PendingThread(first.get("thread_id"), first.get("thread_subject"), emails))
+    return threads
+
+
+def list_pending(vault: Path, limit: int | None, as_json: bool) -> None:
+    all_threads = group_pending_by_thread(vault)
+    total_emails = sum(len(thread.emails) for thread in all_threads)
+    shown = all_threads[:limit] if limit else all_threads
+    listing = [{
+        "thread_id": thread.thread_id,
+        "thread_subject": thread.thread_subject,
+        "emails": [{
+            "path": note.path.relative_to(vault).as_posix(),
+            "date": note.frontmatter.get("date"),
+            "from": note.frontmatter.get("from"),
+            "direction": note.frontmatter.get("direction"),
+            "chars": note.path.stat().st_size,
+        } for note in thread.emails],
+    } for thread in shown]
     if as_json:
-        print(json.dumps({"pending_total": total, "threads_shown": len(out), "threads": out}, ensure_ascii=False, indent=1))
+        summary = {"pending_total": total_emails, "threads_shown": len(listing), "threads": listing}
+        print(json.dumps(summary, ensure_ascii=False, indent=1))
         return
-    print(f"Pending emails: {total} in {len(threads)} threads" + (f" (showing {len(out)})" if limit else ""))
-    for t in out:
-        print(f"\n## {t['thread_subject']}  [{t['thread_id']}]")
-        for e in t["emails"]:
-            print(f"  - {e['date']}  {e['from']}  ({e['direction']}, {e['chars'] // 1000} KB)  {e['path']}")
+    suffix = f" (showing {len(listing)})" if limit else ""
+    print(f"Pending emails: {total_emails} in {len(all_threads)} threads{suffix}")
+    for thread in listing:
+        print(f"\n## {thread['thread_subject']}  [{thread['thread_id']}]")
+        for email in thread["emails"]:
+            size_kb = email["chars"] // BYTES_PER_KB
+            print(f"  - {email['date']}  {email['from']}  ({email['direction']}, {size_kb} KB)  {email['path']}")
 
 
-def cmd_mark(vault: Path, status: str, paths: list[str], reason: str | None) -> int:
-    if status not in VALID:
-        print(f"status must be one of {sorted(VALID)}")
-        return 2
-    if reason is not None and len(reason) > MAX_REASON_LEN:
-        print(f"--reason must be at most {MAX_REASON_LEN} characters")
-        return 2
-    bad = 0
-    emails_root = (vault / "raw" / "emails").resolve()
-    for raw in paths:
-        p = (vault / raw) if not Path(raw).is_absolute() else Path(raw)
-        if not p.suffix:
-            p = p.with_suffix(".md")
-        p = p.resolve()
-        if not p.is_relative_to(emails_root) or p.suffix.lower() != ".md":
-            print(f"  ! refused (not under raw/emails/): {raw}")
-            bad += 1
+def resolve_email_note(vault: Path, raw_path: str) -> Path:
+    """Absolute `.md` path under raw/emails/; refuses anything that is not an email note."""
+    path = Path(raw_path) if Path(raw_path).is_absolute() else vault / raw_path
+    if not path.suffix:
+        path = path.with_suffix(".md")
+    path = path.resolve()
+    if not path.is_relative_to((vault / "raw" / "emails").resolve()) or path.suffix.lower() != ".md":
+        raise MarkRefusedError(f"refused (not under raw/emails/): {raw_path}")
+    if path.exists() and parse_frontmatter(path.read_text(encoding="utf-8")).get("type") != "email":
+        raise MarkRefusedError(f"refused (not an email note): {raw_path}")
+    return path
+
+
+def mark_notes(vault: Path, status: str, raw_paths: list[str], reason: str | None) -> int:
+    """Set `wiki_status` on each note; returns 1 if any path was refused or missing."""
+    failures = 0
+    for raw_path in raw_paths:
+        try:
+            path = resolve_email_note(vault, raw_path)
+        except MarkRefusedError as refusal:
+            print(f"  ! {refusal}")
+            failures += 1
             continue
-        if p.exists() and parse_frontmatter(p.read_text(encoding="utf-8")).get("type") != "email":
-            print(f"  ! refused (not an email note): {raw}")
-            bad += 1
-            continue
-        if not p.exists() or not set_frontmatter_field(p, "wiki_status", status):
-            print(f"  ! not found or no frontmatter: {raw}")
-            bad += 1
+        if not path.exists() or not set_frontmatter_field(path, "wiki_status", status):
+            print(f"  ! not found or no frontmatter: {raw_path}")
+            failures += 1
             continue
         if reason:
-            set_frontmatter_field(p, "wiki_skip_reason", json.dumps(reason))
-        print(f"  {status}: {p.relative_to(vault).as_posix()}")
-    return 1 if bad else 0
+            set_frontmatter_field(path, "wiki_skip_reason", json.dumps(reason))
+        print(f"  {status}: {path.relative_to(vault).as_posix()}")
+    return 1 if failures else 0
 
 
-def cmd_stats(vault: Path) -> None:
+def print_stats(vault: Path) -> None:
     counts: dict[str, int] = defaultdict(int)
-    for _, fm in load(vault):
-        counts[fm.get("wiki_status", "pending")] += 1
+    for note in iter_email_notes(vault):
+        counts[note.wiki_status] += 1
     print(json.dumps(dict(counts)))
 
 
-def main() -> int:
+def reason_text(value: str) -> str:
+    if len(value) > MAX_REASON_LENGTH:
+        raise argparse.ArgumentTypeError(f"must be at most {MAX_REASON_LENGTH} characters")
+    return value
+
+
+def build_parser() -> argparse.ArgumentParser:
+    list_options = argparse.ArgumentParser(add_help=False)
+    list_options.add_argument("--limit", type=int, help="max threads to show")
+    list_options.add_argument("--json", action="store_true")
+
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     parents=[list_options])
+    parser.add_argument("--vault")
+    subcommands = parser.add_subparsers(dest="command")
+    subcommands.add_parser("list", parents=[list_options])
+    mark = subcommands.add_parser("mark")
+    mark.add_argument("status", choices=WIKI_STATUSES)
+    mark.add_argument("paths", nargs="+")
+    mark.add_argument("--reason", type=reason_text)
+    subcommands.add_parser("stats")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
     utf8_stdout()
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--vault")
-    sub = ap.add_subparsers(dest="cmd")
-    ls = sub.add_parser("list")
-    for parser in (ap, ls):
-        parser.add_argument("--limit", type=int, help="max threads to show")
-        parser.add_argument("--json", action="store_true")
-    mk = sub.add_parser("mark")
-    mk.add_argument("status")
-    mk.add_argument("paths", nargs="+")
-    mk.add_argument("--reason")
-    sub.add_parser("stats")
-    a = ap.parse_args()
-    vault = find_vault(a.vault)
-    if a.cmd == "mark":
-        return cmd_mark(vault, a.status, a.paths, a.reason)
-    if a.cmd == "stats":
-        cmd_stats(vault)
+    args = build_parser().parse_args(argv)
+    vault = find_vault(args.vault)
+    if args.command == "mark":
+        return mark_notes(vault, args.status, args.paths, args.reason)
+    if args.command == "stats":
+        print_stats(vault)
         return 0
-    cmd_list(vault, a.limit, a.json)
+    list_pending(vault, args.limit, args.json)
     return 0
 
 

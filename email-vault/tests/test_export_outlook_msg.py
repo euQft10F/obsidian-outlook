@@ -21,7 +21,7 @@ class FakeMail:
         self.SenderName, self.Subject, self.Class = "Shah, Priya", "Q3: budget?", klass
         self.UnRead, self.fail = unread, fail
 
-    def SaveAs(self, path, save_type):
+    def SaveAs(self, path, save_type):  # noqa: N802
         if self.fail:
             raise OSError("IRM protected")
         Path(path).write_bytes(b"msg")
@@ -48,7 +48,8 @@ def make_exporter(tmp_path, exported=None, dry_run=False):
 @pytest.mark.parametrize("raw, expected", [
     ('a/b:c*d?"e"', "a b c d e"),
     ("  Re:  hi ... ", "Re hi"),
-    ("x" * 300, "x" * 100),
+    ("x" * 300, "x" * 180),
+    ("CON", "_CON"),
     ("///", "untitled"),
     (None, "untitled"),
 ])
