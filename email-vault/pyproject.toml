@@ -3,7 +3,7 @@ name = "email-vault"
 version = "0.1.0"
 description = "Outlook .msg -> Obsidian LLM wiki: export, convert and lint scripts"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "extract-msg>=0.55",                       # Outlook .msg parsing
     "markdownify>=0.13",                       # HTML-only emails -> markdown

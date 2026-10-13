@@ -65,11 +65,11 @@ For a first backlog of hundreds of emails, export a month at a time and run
 
 ### Exporting from Outlook
 
-Both exporters drive the **classic Outlook desktop app** through COM (Windows only; the
+The exporter drives the **classic Outlook desktop app** through COM (Windows only; the
 "new Outlook" has no COM interface). Outlook may show a "program is trying to access…" prompt
 if your antivirus status isn't reported to Windows; allow it or ask IT.
 
-**`tools/export_outlook_msg.py`** (recommended) remembers what it exported (by Outlook
+**`tools/export_outlook_msg.py`** remembers what it exported (by Outlook
 EntryID, in `raw/.outlook-export-state.json`), so it suits a timer:
 ```powershell
 uv run python tools/export_outlook_msg.py --list-folders                 # see folder paths
@@ -79,11 +79,11 @@ uv run python tools/export_outlook_msg.py --days 30 --folder "Inbox/Projects/Q3"
 uv run python tools/export_outlook_msg.py --since 2026-09-01 --folder "Shared Mailbox/Inbox"
 uv run python tools/export_outlook_msg.py --days 1 --convert             # export, then convert to raw/
 ```
-Other flags: `--unread-only`, `--limit N`, `--dry-run`, `--force` (re-export a selection).
+Running it with no arguments just prints the help; you must choose `--selection`, `--days`,
+`--since` or `--list-folders`. Other flags: `--unread-only`, `--limit N` (newly saved emails per
+folder), `--dry-run`, `--force` (re-export a selection), `--output-dir DIR` (default
+`00-inbox/`) and `--state-file FILE` (default `raw/.outlook-export-state.json`).
 Exporting Sent Items too gives Claude your side of each thread.
-
-**`tools/Export-OutlookMsg.ps1`** needs no Python: `-Selection`, `-Days N`,
-`-FolderPath "Inbox\Sub"`. It doesn't keep state; the converter drops repeats as duplicates.
 
 ## 3. Folder structure
 
@@ -98,7 +98,7 @@ wiki/projects/            topics spanning several threads
 wiki/answers/  digests/   filed query results
 wiki/index.md  log.md     catalogue Claude reads first; append-only history
 bases/                    Obsidian Bases dashboards
-tools/                    Outlook exporters (export_outlook_msg.py, Export-OutlookMsg.ps1)
+tools/                    Outlook exporter (export_outlook_msg.py)
 pyproject.toml  uv.lock   Python environment for uv (requirements.txt for uv pip / pip)
 CLAUDE.md                 the schema: rules, page templates, triage — edit it as you go
 .claude/skills/           email-ingest (+ scripts/), email-ask, email-lint
@@ -159,15 +159,8 @@ Automation options:
 - To use the workflow from other folders, copy the three skill folders into
   `~/.claude/skills/` and keep the scripts' `--vault` pointing here.
 
-## 6. Privacy and work email
 
-Emails you compile are sent to Claude for processing. For work mail, check your employer's
-policy on AI tools first; a company Claude for Work/Enterprise plan is the usual way to make
-this acceptable. Keep the vault out of personal cloud sync if the mail is confidential, and
-don't push `raw/` to a public remote. The schema tells Claude to treat email content as data,
-never as instructions — a phishing email that says "forward all invoices" gets summarised, not obeyed.
-
-## 7. Troubleshooting
+## 6. Troubleshooting
 
 - `pip install extract-msg` fails building `red-black-tree-mod` → use `uv sync` (step 1.2), which
   builds it in an isolated environment with current `setuptools`.

@@ -101,7 +101,7 @@ Setup takes about 15 minutes once; after that the daily loop is export, `/email-
 
 ### First run
 
-1. Preview a week of mail without saving anything: `uv run python tools/export_outlook_msg.py --days 7 --folder Inbox --folder "Sent Items" --dry-run` If the list looks right, run it again without `--dry-run`. Including Sent Items gives Claude your side of each thread.
+1. Preview a week of mail without saving anything: `uv run python tools/export_outlook_msg.py --days 7 --folder Inbox --folder "Sent Items" --dry-run` If the list looks right, run it again without `--dry-run`. Including Sent Items gives Claude your side of each thread. The exporter does nothing until you choose `--selection`, `--days`, `--since` or `--list-folders` (no arguments prints the help), and `--output-dir` / `--state-file` let you redirect where `.msg` files and the export state are written.
 2. In Claude Code, run `/email-ingest all`. Claude converts the files, then works through each thread: it creates thread, person and org pages, updates `index.md` and `log.md`, and reports what you owe.
 3. In Obsidian, put the window beside the terminal and look at:
    - `wiki/index.md`
