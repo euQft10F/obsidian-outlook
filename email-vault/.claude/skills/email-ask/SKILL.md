@@ -6,6 +6,8 @@ allowed-tools:
   - Read
   - Write(wiki/answers/**)
   - Write(wiki/digests/**)
+  - Write(wiki/index.md)
+  - Write(wiki/log.md)
   - Edit(wiki/**)
   - Glob
   - Grep

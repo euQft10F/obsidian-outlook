@@ -9,6 +9,7 @@ allowed-tools:
   - Write(wiki/drafts/**)
   - Edit(wiki/drafts/**)
   - Edit(wiki/log.md)
+  - Write(wiki/log.md)
 ---
 
 # Draft a reply
@@ -39,7 +40,7 @@ no other page (thread status, index, people).
 Overwrite `wiki/drafts/Draft - <Thread page name>.md` with the draft frontmatter from CLAUDE.md,
 the draft text, then `## Notes`: facts used (cited `[[<basename>|short label]]`), assumptions and
 each `[CONFIRM]` point. Append `## [YYYY-MM-DD] edit | draft for <Thread page name>` to
-`wiki/log.md` with Edit, never a whole-file Write (create it first if missing, per CLAUDE.md).
+`wiki/log.md` with Edit; use Write only to create it when missing (per CLAUDE.md), never to rewrite it.
 
 ## Report
 

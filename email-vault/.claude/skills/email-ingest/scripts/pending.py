@@ -153,8 +153,9 @@ def build_parser() -> argparse.ArgumentParser:
     list_options.add_argument("--limit", type=int, help="max threads to show")
     list_options.add_argument("--json", action="store_true")
 
+    # allow_abbrev=False: settings.json denies the literal `--vault`, so `--vau` must not reach it
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
-                                     parents=[list_options])
+                                     parents=[list_options], allow_abbrev=False)
     parser.add_argument("--vault")
     subcommands = parser.add_subparsers(dest="command")
     subcommands.add_parser("list", parents=[list_options])

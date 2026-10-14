@@ -142,6 +142,43 @@ def test_executable_attachment_is_blocked_not_parsed(msg_to_md, vault, monkeypat
     assert "executable type, not opened" in next((vault / "raw" / "emails").rglob("*.md")).read_text(encoding="utf-8")
 
 
+def test_note_like_attachment_cannot_pose_as_a_vault_note(msg_to_md, vault, monkeypatch):
+    fake_page = b"---\ntype: person\n---\nSee ![](https://tracker.example/p.gif)"
+    write_eml(vault / "00-inbox" / "a.eml", attachments=[("Priya Shah.md", fake_page)])
+    run_cli(msg_to_md, monkeypatch, "--vault", str(vault))
+    saved = sorted(p.name for p in (vault / "raw" / "attachments").rglob("*") if p.is_file())
+    assert saved == ["Priya Shah.md.txt", "Priya Shah.md.txt.extracted.md"]
+    extracted = next((vault / "raw" / "attachments").rglob("*.extracted.md")).read_text(encoding="utf-8")
+    assert "![](" not in extracted and "!\\[](" in extracted
+
+
+def test_email_body_cannot_embed_remote_content(msg_to_md, vault, monkeypatch):
+    body = 'Hi ![](https://tracker.example/p.gif) and <iframe src="https://evil.example"></iframe>\n'
+    write_eml(vault / "00-inbox" / "a.eml", sender='Eve <img src=x> <eve@evil.example>', body=body)
+    run_cli(msg_to_md, monkeypatch, "--vault", str(vault))
+    text = next((vault / "raw" / "emails").rglob("*.md")).read_text(encoding="utf-8")
+    message = text.split("\n---\n", 1)[1]
+    assert "![](" not in message and "<iframe" not in message and "<img" not in message
+    assert "&lt;iframe" in message and "!\\[](https://tracker.example/p.gif)" in message
+
+
+def test_one_failing_email_does_not_abort_the_batch(msg_to_md, vault, monkeypatch):
+    write_eml(vault / "00-inbox" / "a.eml", subject="boom")
+    write_eml(vault / "00-inbox" / "b.eml", subject="fine")
+    original = msg_to_md.Converter._write_note
+
+    def write_note_or_fail(self, parsed, *args, **kwargs):
+        if parsed.subject == "boom":
+            raise OSError("path too long")
+        return original(self, parsed, *args, **kwargs)
+
+    monkeypatch.setattr(msg_to_md.Converter, "_write_note", write_note_or_fail)
+    assert run_cli(msg_to_md, monkeypatch, "--vault", str(vault)) == 1
+    assert (vault / "00-inbox" / "_failed" / "a.eml").exists()
+    assert [p.name for p in (vault / "raw" / "emails").rglob("*.md")][0].endswith("fine.md")
+    assert (vault / "raw" / ".email-index.json").exists()
+
+
 def test_files_outside_inbox_are_refused(msg_to_md, vault, monkeypatch, tmp_path_factory):
     outside = write_eml(tmp_path_factory.mktemp("elsewhere") / "x.eml")
     assert run_cli(msg_to_md, monkeypatch, "--vault", str(vault), str(outside)) == 2
@@ -181,6 +218,14 @@ def test_pending_mark_refusals(pending, vault, monkeypatch):
             run_cli(pending, monkeypatch, *bad_argv)
         assert refused.value.code == 2
     assert 'wiki_status: "pending"' in note.read_text(encoding="utf-8")
+
+
+def test_scripts_reject_abbreviated_vault(msg_to_md, pending, lint_vault, vault, monkeypatch):
+    # settings.json denies the literal `--vault`; an abbreviation must not slip past it
+    for module in (msg_to_md, pending, lint_vault):
+        with pytest.raises(SystemExit) as refused:
+            run_cli(module, monkeypatch, "--vau", str(vault))
+        assert refused.value.code == 2
 
 
 # ---------------------------------------------------------------- lint_vault

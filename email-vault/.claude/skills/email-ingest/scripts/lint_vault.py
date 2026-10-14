@@ -217,7 +217,8 @@ def render_markdown(today: dt.date, page_count: int, status_counts: dict[str, in
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+    # allow_abbrev=False: settings.json denies the literal `--vault`, so `--vau` must not reach it
+    parser = argparse.ArgumentParser(description=__doc__, allow_abbrev=False)
     parser.add_argument("--vault")
     parser.add_argument("--stale-days", type=int, default=7)
     parser.add_argument("--min-emails", type=int, default=3, help="threshold for 'frequent correspondent'")

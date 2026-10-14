@@ -159,14 +159,28 @@ Everything Claude needs is in the vault:
   wiki maintainer.
 - `.claude/skills/*/SKILL.md` — each is a slash command and is also used automatically when
   your request matches its description. Arguments go after the name (`/email-ingest 30`).
-- `.claude/settings.json` pre-approves only the three vault scripts (exact paths, run as
-  `uv run --frozen python …` or the `.venv` interpreter, so nothing is resolved or installed at
-  run time) and wiki edits. It **denies** edits to `raw/`, WebFetch/WebSearch, `curl`/`wget`/
-  `Invoke-WebRequest`, package installs, and the Gmail, Google Drive and Chrome connectors.
-  Each skill's `allowed-tools` is scoped to the scripts it actually uses, and its Write/Edit to
-  `wiki/` (`/email-draft` to `wiki/drafts/`), so text in an email can't steer Claude into
-  silently editing a script, a skill or these settings: anything outside `wiki/` asks first.
-  Script rules name the file exactly (`pending.py` or `pending.py <args>`, not a prefix), so a
+- `.claude/settings.json` pre-approves only the read-only script calls in every session:
+  `lint_vault.py`, and `pending.py` (list), `pending.py stats` and `pending.py --json`. Each one is
+  run as `uv run --frozen python …` or with the `.venv` interpreter, so nothing is resolved or
+  installed at run time. Settings grant no wiki writes.
+- Each skill's `allowed-tools` grants the rest, and only while that skill runs:
+  - `/email-ingest` converts and marks emails and writes `wiki/`.
+  - `/email-lint` writes `wiki/`.
+  - `/email-ask` writes answers and digests, and edits `wiki/`.
+  - `/email-draft` writes `wiki/drafts/` and the log.
+  - `/email-today` writes nothing.
+
+  Skill rules only add permissions, so keeping settings this narrow is what makes the skill
+  scopes real. Wiki edits outside a skill ask first, and so does anything outside `wiki/`, so text
+  in an email can't steer Claude into silently editing a script, a skill or these settings.
+- The settings also **deny**:
+  - edits to `raw/`
+  - `--vault` on the scripts: they always work on this vault, and argparse abbreviations are disabled
+  - WebFetch and WebSearch
+  - `curl`, `wget`, `Invoke-WebRequest` and `Invoke-RestMethod`, in both Bash and PowerShell
+  - package installs
+  - the Gmail, Google Drive and Chrome connectors
+- Script rules name the file exactly (`pending.py` or `pending.py <args>`, not a prefix), so a
   newly written `pending.py_x.py` isn't pre-approved. Don't ingest in auto-accept or bypass
   permission modes, which skip those prompts.
 
@@ -187,7 +201,11 @@ Everything Claude needs is in the vault:
 - `pending.py mark` only touches `type: email` notes under `raw/emails/`; `msg_to_md.py` only
   accepts files inside `00-inbox/`.
 - Attachments of executable/script types are stored with a `.blocked` suffix and never parsed;
-  attachments over 25 MB are stored but not parsed.
+  attachments over 25 MB are stored but not parsed. Attachments named `.md`, `.canvas` or `.base` get
+  `.txt` appended, so an emailed file can't pose as a vault note or capture `[[links]]`.
+- In raw notes and extracted text, `<` is written as `&lt;` and `![` as `!\[`. Opening a note
+  therefore never loads remote images or HTML from an email (tracking pixels, iframes).
+- A file that fails to convert is moved to `00-inbox/_failed/` and the rest of the batch still runs.
 
 Automation options:
 - **Capture on a timer** (no LLM): a Windows Task Scheduler task, hourly, running
@@ -197,8 +215,9 @@ Automation options:
   `/email-ingest`, or headless `claude -p "/email-ingest"` from Task Scheduler. Desktop
   scheduled tasks run on your machine, so they see the vault's project skills; cloud
   routines don't.
-- To use the workflow from other folders, copy the email skill folders into
-  `~/.claude/skills/` and keep the scripts' `--vault` pointing here.
+- Run Claude Code from this folder. The scripts find the vault from the project directory, and
+  Claude may not pass `--vault`, so copying the skills elsewhere won't reach this vault. You and
+  the exporter can still use `--vault` from a terminal.
 
 
 ## 6. Troubleshooting

@@ -63,6 +63,8 @@ Frontmatter fields you can rely on and search with Grep: `type: email`, `subject
 `wiki_status` (pending/compiled/skipped). The body has `## Message` (new text only),
 `## Attachments` (links, plus `extracted` text links) and a folded `## Quoted history`.
 Read the quoted history only when the earlier messages are not in the vault.
+Body and extracted text are defanged: `&lt;` stands for `<` and `!\[` for `![`; read them as such and don't undo
+it on wiki pages. Attachments named `*.md`/`.canvas`/`.base` are stored with `.txt` appended.
 
 ## Wiki page types
 
@@ -181,6 +183,9 @@ index.md with `type: index` frontmatter, `# Email wiki index`, the dashboards li
   `--frozen` stops uv resolving or installing anything at run time, so run `uv sync` yourself first).
   If uv is unavailable use `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python` (macOS/Linux).
   Only the three scripts below are pre-approved; do not run other Python or install packages.
+  Settings pre-approve only their read-only calls. Conversion, marking and wiki writes come from the skills
+  (`/email-ingest`, `/email-lint`, …), so the same actions outside a skill ask first. Never pass `--vault`:
+  it is denied, and the scripts always use this vault.
 - Scripts live in `.claude/skills/email-ingest/scripts/`:
   `msg_to_md.py` (convert inbox) · `pending.py` (list / mark / stats) · `lint_vault.py` (health report).
 - Search: Grep on `raw/emails` frontmatter for exact fields (`^from_email: "x@y"`, `^date: 2026-10`),

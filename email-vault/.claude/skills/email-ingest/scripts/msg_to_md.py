@@ -25,7 +25,6 @@ import email
 import email.policy
 import email.utils
 import hashlib
-import html
 import json
 import re
 import shutil
@@ -64,6 +63,9 @@ PLAIN_TEXT_EXT = {".txt", ".csv", ".md", ".json", ".log"}
 # Executable / script attachments are saved with a ".blocked" suffix and never parsed.
 BLOCKED_EXT = {".exe", ".dll", ".js", ".jse", ".vbs", ".vbe", ".ps1", ".bat", ".cmd", ".lnk", ".scr",
                ".jar", ".msi", ".hta", ".com", ".cpl", ".wsf", ".reg"}
+# Attachments Obsidian would treat as vault notes or views get ".txt" appended, so an emailed
+# `Priya Shah.md` can't pose as a wiki page or capture [[links]]; the text is still extracted.
+NOTE_LIKE_EXT = {".md", ".canvas", ".base"}
 
 SUBJECT_PREFIX_RE = re.compile(
     r"^\s*((re|fw|fwd|aw|wg|tr|sv|vs|rv|r|antw|odp|réf|ref)\s*(\[\d+\])?\s*:\s*|\[external\]\s*)+",
@@ -125,6 +127,17 @@ def normalize_subject(subject: str) -> str:
 def slugify(text: str, max_length: int = 60) -> str:
     slug = re.sub(r"[^\w]+", "-", text.lower(), flags=re.U).strip("-")
     return slug[:max_length].strip("-") or "untitled"
+
+
+def one_line(text: str) -> str:
+    """Collapse all whitespace (including newlines) so header text can't start new markdown lines."""
+    return " ".join(text.split())
+
+
+def defang_markdown(text: str) -> str:
+    """Email text as Obsidian will render it: no raw HTML and no `![](…)` embeds, which load remote
+    content (tracking pixels, iframes) when the note is opened. Links stay as plain, click-only text."""
+    return text.replace("<", "&lt;").replace("![", "!\\[")
 
 
 def yaml_str(value) -> str:
@@ -255,7 +268,7 @@ def html_to_markdown(html_text: str) -> str:
     except Exception:  # markdownify missing or choking on odd HTML: fall back to plain text
         extractor = _TextExtractor()
         extractor.feed(html_text)
-        markdown = html.unescape("".join(extractor.parts))
+        markdown = "".join(extractor.parts)  # entities already decoded; decoding twice revives `&lt;tags&gt;`
     markdown = re.sub(r"[ \t]+\n", "\n", markdown)
     return re.sub(r"\n{3,}", "\n\n", markdown).strip()
 
@@ -555,16 +568,20 @@ def render_note(parsed: ParsedEmail, *, sender: Address, local: dt.datetime, dir
         "---",
     ]
 
-    new_text, quoted = split_quoted(parsed.body)
+    new_text, quoted = (defang_markdown(part) for part in split_quoted(parsed.body))
+
+    def header(addresses: list[Address]) -> str:
+        return defang_markdown(one_line(", ".join(address.display() for address in addresses)))
+
     lines = frontmatter + [
         "",
-        f"# {subject}",
+        f"# {defang_markdown(one_line(subject))}",
         "",
-        f"**From:** {sender.display()}  ",
-        f"**To:** {', '.join(address.display() for address in parsed.to) or '—'}  ",
+        f"**From:** {header([sender])}  ",
+        f"**To:** {header(parsed.to) or '—'}  ",
     ]
     if parsed.cc:
-        lines.append(f"**Cc:** {', '.join(address.display() for address in parsed.cc)}  ")
+        lines.append(f"**Cc:** {header(parsed.cc)}  ")
     lines += [f"**Date:** {local:%a %d %b %Y %H:%M}", "", "## Message", "", new_text or "_(empty body)_", ""]
     if attachment_lines:
         lines += ["## Attachments", "", *attachment_lines, ""]
@@ -635,18 +652,20 @@ class Converter:
 
     # -- public
     def convert_file(self, source: Path) -> None:
+        try:
+            self._convert(source)
+        except Exception as error:  # any failure (parse, odd date, path too long) quarantines the file, not the batch
+            self.results.append(ConversionResult(source.name, "failed", error=f"{type(error).__name__}: {error}"))
+            if not self.dry_run and source.exists():
+                self._quarantine(source)
+
+    def _convert(self, source: Path) -> None:
         sha = hashlib.sha256(source.read_bytes()).hexdigest()
         known_note = self.index.note_for_sha(sha)
         if known_note:
             self._file_duplicate(source, known_note)
             return
-        try:
-            parsed = parse_msg_file(source) if source.suffix.lower() == ".msg" else parse_eml_file(source)
-        except Exception as error:  # any parser failure quarantines the file instead of aborting the batch
-            self.results.append(ConversionResult(source.name, "failed", error=f"{type(error).__name__}: {error}"))
-            if not self.dry_run:
-                self._quarantine(source)
-            return
+        parsed = parse_msg_file(source) if source.suffix.lower() == ".msg" else parse_eml_file(source)
         if not parsed.date:
             parsed.date = dt.datetime.fromtimestamp(source.stat().st_mtime).astimezone()
             parsed.date_source = DateSource.FILE_MODIFIED_TIME
@@ -744,6 +763,8 @@ class Converter:
             too_large = len(attachment.data) > MAX_EXTRACT_BYTES
             if blocked:
                 filename += ".blocked"
+            elif Path(filename).suffix.lower() in NOTE_LIKE_EXT:
+                filename += ".txt"
             target = self._unique(directory / filename)
             line = f"- [[{self._relative(target)}|{filename}]] ({len(attachment.data) / 1024:.0f} KB)"
             if blocked:
@@ -763,7 +784,9 @@ class Converter:
         text = normalize_text(extract_attachment_text(attachment_path))
         if not text:
             return ""
-        clipped = text[:TEXT_EXTRACT_LIMIT] + ("\n\n… (truncated)" if len(text) > TEXT_EXTRACT_LIMIT else "")
+        clipped = defang_markdown(text[:TEXT_EXTRACT_LIMIT])
+        if len(text) > TEXT_EXTRACT_LIMIT:
+            clipped += "\n\n… (truncated)"
         extracted = attachment_path.with_name(attachment_path.name + ".extracted.md")
         extracted.write_text(
             "---\ntype: attachment-text\n"
@@ -800,7 +823,9 @@ def _all_warnings(parsed: ParsedEmail) -> list[str]:
 # ---------------------------------------------------------------- command line
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    # allow_abbrev=False: settings.json denies the literal `--vault`, so `--vau` must not reach it
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     allow_abbrev=False)
     parser.add_argument("files", nargs="*", help="specific .msg/.eml files (default: everything in 00-inbox/)")
     parser.add_argument("--vault", help="vault root (default: $CLAUDE_PROJECT_DIR or nearest folder with CLAUDE.md)")
     parser.add_argument("--me", action="append", default=[], help="your own address(es); also env EMAIL_VAULT_ME")
@@ -852,9 +877,11 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     owner = owner_addresses(args.me, vault)
     converter = Converter(vault, owner, dry_run=args.dry_run, keep_originals=args.keep)
-    for file in files:
-        converter.convert_file(file)
-    converter.save_index()
+    try:
+        for file in files:
+            converter.convert_file(file)
+    finally:  # keep the index of what was converted even if the run is interrupted
+        converter.save_index()
     print_summary(vault, converter.results, check_setup(vault, owner), dry_run=args.dry_run, as_json=args.json)
     return 1 if any(result.status == "failed" for result in converter.results) else 0
 
