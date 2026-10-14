@@ -1,0 +1,5 @@
+# Subjects to skip when exporting from Outlook.
+# One pattern per line; case-insensitive partial match against the subject.
+# Blank lines and lines starting with # are ignored.
+# Automatic reply
+# Accepted:

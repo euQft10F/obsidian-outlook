@@ -27,6 +27,8 @@ from typing import Any
 
 VAULT_ROOT = Path(__file__).resolve().parent.parent
 STATE_RELATIVE_PATH = Path("raw") / ".outlook-export-state.json"
+IGNORE_FROM_PATH = Path(__file__).resolve().parent / "ignore.from.txt"
+IGNORE_SUBJECT_PATH = Path(__file__).resolve().parent / "ignore.subject.txt"
 CONVERTER_RELATIVE_PATH = Path(".claude/skills/email-ingest/scripts/msg_to_md.py")
 CONVERTER_BATCH_SIZE = 50  # keeps the converter's command line under Windows' length limit
 
@@ -127,14 +129,46 @@ def save_state(path: Path, exported: dict[str, Any]) -> None:
     scratch_path.replace(path)
 
 
+def load_ignore_list(path: Path) -> list[str]:
+    """Lower-cased patterns from a text file: one per line, blank lines and '#' comments skipped."""
+    if not path.exists():
+        return []
+    lines = path.read_text(encoding="utf-8-sig").splitlines()
+    return [line.strip().lower() for line in lines if line.strip() and not line.lstrip().startswith("#")]
+
+
+def sender_addresses(item: Any) -> list[str]:
+    """Lower-cased strings identifying the sender: display name, address and SMTP address if resolvable."""
+    values = [getattr(item, "SenderName", ""), getattr(item, "SenderEmailAddress", "")]
+    try:  # Exchange senders carry an X.500 address; ask for the SMTP one
+        values.append(item.Sender.GetExchangeUser().PrimarySmtpAddress)
+    except Exception:
+        pass
+    return [str(value).lower() for value in values if value]
+
+
 class MailExporter:
-    def __init__(self, output_dir: Path, exported: dict[str, Any], *, dry_run: bool):
+    def __init__(self, output_dir: Path, exported: dict[str, Any], *, dry_run: bool,
+                 ignore_from: list[str] | None = None, ignore_subject: list[str] | None = None):
         self.output_dir = output_dir
         self.exported = exported  # shared with the caller, which persists it
         self.dry_run = dry_run
+        self.ignore_from = ignore_from or []
+        self.ignore_subject = ignore_subject or []
         self.saved_paths: set[Path] = set()
         self.skipped = 0
+        self.ignored = 0
         self.failed = 0
+
+    def is_ignored(self, item: Any) -> bool:
+        """True when the sender or subject contains any ignore pattern (case-insensitive)."""
+        subject = str(item.Subject or "").lower()
+        if any(pattern in subject for pattern in self.ignore_subject):
+            return True
+        if self.ignore_from:
+            senders = sender_addresses(item)
+            return any(pattern in sender for pattern in self.ignore_from for sender in senders)
+        return False
 
     def export_item(self, item: Any, *, force: bool = False, received: dt.datetime | None = None) -> bool:
         """Save one Outlook item as .msg; return True if saved. `force` re-exports known items."""
@@ -145,6 +179,9 @@ class MailExporter:
             entry_id = item.EntryID
             if entry_id in self.exported and not force:
                 self.skipped += 1
+                return False
+            if self.is_ignored(item):  # not recorded in state, so editing the lists later can export it
+                self.ignored += 1
                 return False
 
             received = received or item_received_time(item)
@@ -218,6 +255,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--state-file", type=Path, metavar="FILE",
                         help=f"JSON file remembering exported emails "
                              f"(default: <vault>/{STATE_RELATIVE_PATH.as_posix()})")
+    parser.add_argument("--ignore-from-file", type=Path, metavar="FILE",
+                        help="text file of sender patterns to skip: one per line, case-insensitive partial match "
+                             f"on name or address, '#' comments (default: {IGNORE_FROM_PATH})")
+    parser.add_argument("--ignore-subject-file", type=Path, metavar="FILE",
+                        help="text file of subject patterns to skip, same format "
+                             f"(default: {IGNORE_SUBJECT_PATH})")
     parser.add_argument("--dry-run", action="store_true", help="show what would be saved without writing anything")
     parser.add_argument("--convert", action="store_true", help="run msg_to_md.py on the exported files afterwards")
     return parser
@@ -263,7 +306,14 @@ def run(args: argparse.Namespace) -> int:
             print_folder_tree(mailbox)
         return 0
 
-    exporter = MailExporter(output_dir, exported, dry_run=args.dry_run)
+    ignore_from_path = args.ignore_from_file or IGNORE_FROM_PATH
+    ignore_subject_path = args.ignore_subject_file or IGNORE_SUBJECT_PATH
+    for explicit, path in ((args.ignore_from_file, ignore_from_path), (args.ignore_subject_file, ignore_subject_path)):
+        if explicit and not path.exists():
+            raise ExportError(f"ignore file not found: {path}")
+    exporter = MailExporter(output_dir, exported, dry_run=args.dry_run,
+                            ignore_from=load_ignore_list(ignore_from_path),
+                            ignore_subject=load_ignore_list(ignore_subject_path))
     try:
         if args.selection:
             selection = application.ActiveExplorer().Selection
@@ -287,7 +337,8 @@ def run(args: argparse.Namespace) -> int:
 
     saved = len(exporter.saved_paths)
     print(f"Done: {'would save' if args.dry_run else 'saved'} {saved}, skipped {exporter.skipped} "
-          f"(already exported or not an email), failed {exporter.failed} -> {output_dir}")
+          f"(already exported or not an email), ignored {exporter.ignored}, "
+          f"failed {exporter.failed} -> {output_dir}")
 
     convert_exit_code = 0
     if args.convert and saved and not args.dry_run:

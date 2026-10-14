@@ -2,14 +2,16 @@
 __pycache__/
 .obsidian/workspace*.json
 .obsidian/cache
+.obsidian/*
 # Raw email content (bodies, attachments, originals, index/log) is corporate data: never commit it.
 # Consequence: wiki links to raw notes won't resolve in a fresh clone.
 raw/
 
+tools/*.txt
 # Compiled wiki pages are summaries of email content; keep only the catalogue/log templates and folder markers.
 wiki/*
-!wiki/index.md
-!wiki/log.md
+wiki/index.md
+wiki/log.md
 !wiki/*/
 wiki/*/*
 !wiki/*/.gitkeep
