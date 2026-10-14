@@ -15,7 +15,8 @@ allowed-tools:
 # Lint the email wiki
 
 1. Run `<python> .claude/skills/email-ingest/scripts/lint_vault.py` (see CLAUDE.md → Tools).
-   It counts what a script can count.
+   It counts what a script can count. If it reports a **Setup** section (Owner section of
+   CLAUDE.md unfilled, no owner address), pass it on to the user first; don't edit the Owner section.
 2. **Fix non-destructive mechanical issues directly**: pages missing from `wiki/index.md`,
    missing `sources`, frontmatter `type` errors, compiled emails no page cites (add them to the
    right thread timeline), broken links with one obvious target (re-point them). Anything that

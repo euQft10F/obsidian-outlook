@@ -198,6 +198,21 @@ def test_lint_reports_broken_orphan_and_overdue(lint_vault, vault, monkeypatch, 
     assert any("due 2020-01-01" in line for line in issues["Overdue threads (status open/waiting, due date passed)"])
 
 
+def test_lint_accepts_unindexed_draft_pages(lint_vault, vault, monkeypatch, capsys):
+    (vault / "wiki" / "index.md").write_text("# no frontmatter: still exempt by name\n", encoding="utf-8")
+    (vault / "wiki" / "drafts").mkdir()
+    (vault / "wiki" / "threads" / "Budget (2026-10).md").write_text("---\ntype: thread\n---\n", encoding="utf-8")
+    (vault / "wiki" / "drafts" / "Draft - Budget (2026-10).md").write_text(
+        "---\ntype: draft\n---\nHi Priya,\n\n## Notes\n- [[Budget (2026-10)]]\n- [[Typo]]\n", encoding="utf-8")
+    run_cli(lint_vault, monkeypatch, "--vault", str(vault), "--json")
+    issues = json.loads(capsys.readouterr().out)["issues"]
+    flagged = [line for key in (lint_vault.ORPHAN, lint_vault.NOT_INDEXED) for line in issues.get(key, [])]
+    assert not any("drafts/" in line or line == "wiki/index.md" for line in flagged)
+    assert not any("drafts/" in line for line in issues.get(lint_vault.BAD_TYPE, []))
+    assert "wiki/threads/Budget (2026-10).md" in issues[lint_vault.ORPHAN]  # a draft's link doesn't count
+    assert "wiki/drafts/Draft - Budget (2026-10).md -> [[Typo]]" in issues[lint_vault.BROKEN_LINKS]
+
+
 # ---------------------------------------------------------------- owner setup
 
 TEMPLATE_OWNER = "## Owner (fill in)\n\n- Owner: <your name>\n- Owner's addresses: <you@work.com>\n"

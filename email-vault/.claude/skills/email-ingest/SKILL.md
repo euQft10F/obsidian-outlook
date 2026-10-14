@@ -14,6 +14,9 @@ allowed-tools:
   - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py*)
   - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/msg_to_md.py*)
   - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py*)
+  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/lint_vault.py --json*)
+  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/lint_vault.py --json*)
+  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/lint_vault.py --json*)
 ---
 
 # Email ingest
@@ -75,8 +78,13 @@ Create either file first if missing (CLAUDE.md → index.md and log.md). Update 
 - skipped: <k> (newsletter/notification)
 ```
 
+Then check the bookkeeping: run `<python> $S/lint_vault.py --json` and, for the pages and emails in
+this run's log entry only, fix the `issues` under "Pages not listed in wiki/index.md", "Thread
+pages with no `sources`", "Compiled emails that no wiki page cites" and "Broken wikilinks".
+Ignore every other section; that is `/email-lint`'s job.
+
 ## 6. Report
 
 Reply in a few lines: what came in, new or changed **actions and deadlines for me**, anything
 waiting on others that is now overdue, contradictions found, and how many emails are still
-pending (`<python> $S/pending.py stats`). If some remain, say so and suggest running again.
+pending (`raw_emails` in the lint output). If some remain, say so and suggest running again.

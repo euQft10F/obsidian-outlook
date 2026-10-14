@@ -34,8 +34,9 @@ from vaultlib import (
     wikilinks,
 )
 
-WIKI_PAGE_TYPES = {"person", "org", "thread", "project", "answer", "digest", "index", "log", "overview"}
-UNINDEXED_PAGE_STEMS = {"index", "log"}
+WIKI_PAGE_TYPES = {"person", "org", "thread", "project", "answer", "digest", "index", "log", "overview", "draft"}
+UNINDEXED_PAGE_STEMS = {"index", "log"}  # by name too, in case their frontmatter is missing
+UNINDEXED_PAGE_TYPES = {"index", "log", "draft"}  # not listed in index.md nor checked for orphans
 AUTOMATED_SENDER_RE = re.compile(r"no-?reply|do-?not-?reply|notification|mailer-daemon|postmaster|calendar", re.I)
 MAX_ITEMS_PER_SECTION = 50
 MAX_FAILED_NAMES_SHOWN = 5
@@ -97,11 +98,14 @@ def analyse_links(vault: Path, pages: list[WikiPage], targets: set[str]) -> Link
     broken: list[tuple[str, str]] = []
     cited_email_stems: set[str] = set()
     for page in pages:
+        is_draft = page.frontmatter.get("type") == "draft"  # transient: links neither cite nor rescue orphans
         for link in wikilinks(page.text):
             key = link.lower().rstrip("/")
             key = key.removesuffix(".md")
             if key not in targets:
                 broken.append((page.path.relative_to(vault).as_posix(), link))
+                continue
+            if is_draft:
                 continue
             target_name = key.rsplit("/", 1)[-1]
             if page.path.stem.lower() != target_name:
@@ -129,7 +133,7 @@ class PageChecker:
         page_type = page.frontmatter.get("type")
         if page_type not in WIKI_PAGE_TYPES:
             self.report[BAD_TYPE].append(f"{relative} (type={page_type!r})")
-        if stem in UNINDEXED_PAGE_STEMS:
+        if stem in UNINDEXED_PAGE_STEMS or page_type in UNINDEXED_PAGE_TYPES:
             return
         if self.inbound_counts.get(stem, 0) == 0:
             self.report[ORPHAN].append(relative)

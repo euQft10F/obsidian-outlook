@@ -1,0 +1,4 @@
+# Keep LF in the working tree as well as the index, whatever core.autocrlf says:
+# the scripts and Obsidian write LF, so CRLF conversion only produces noisy warnings.
+# (Email files are git-ignored, so no binary rules are needed; text=auto detects binaries anyway.)
+* text=auto eol=lf

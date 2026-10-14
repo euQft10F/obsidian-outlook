@@ -15,11 +15,22 @@ spec.loader.exec_module(exporter)
 NOW = dt.datetime(2026, 10, 13, 9, 0)
 
 
+class FakeSender:
+    def __init__(self, smtp=None):
+        self.smtp = smtp
+
+    def GetExchangeUser(self):  # noqa: N802
+        if self.smtp is None:
+            raise AttributeError("not an Exchange user")
+        return SimpleNamespace(PrimarySmtpAddress=self.smtp)
+
+
 class FakeMail:
-    def __init__(self, entry_id, received=NOW, *, klass=43, fail=False, unread=True):
+    def __init__(self, entry_id, received=NOW, *, klass=43, fail=False, unread=True,
+                 name="Shah, Priya", address="", smtp=None, subject="Q3: budget?"):
         self.EntryID, self.ReceivedTime, self.SentOn = entry_id, received, received
-        self.SenderName, self.Subject, self.Class = "Shah, Priya", "Q3: budget?", klass
-        self.UnRead, self.fail = unread, fail
+        self.SenderName, self.SenderEmailAddress, self.Sender = name, address, FakeSender(smtp)
+        self.Subject, self.Class, self.UnRead, self.fail = subject, klass, unread, fail
 
     def SaveAs(self, path, save_type):  # noqa: N802
         if self.fail:
@@ -41,8 +52,9 @@ class FakeFolder:
         return iter(self._mails)
 
 
-def make_exporter(tmp_path, exported=None, dry_run=False):
-    return exporter.MailExporter(tmp_path / "out", {} if exported is None else exported, dry_run=dry_run)
+def make_exporter(tmp_path, exported=None, dry_run=False, **ignore_lists):
+    return exporter.MailExporter(tmp_path / "out", {} if exported is None else exported, dry_run=dry_run,
+                                 **ignore_lists)
 
 
 @pytest.mark.parametrize("raw, expected", [
@@ -110,6 +122,50 @@ def test_resolve_folder():
 def test_no_arguments_prints_help(capsys):
     assert exporter.main([]) == 0
     assert "--output-dir" in capsys.readouterr().out
+
+
+def test_load_ignore_list(tmp_path):
+    assert exporter.load_ignore_list(tmp_path / "missing.txt") == []
+    path = tmp_path / "ignore.txt"
+    path.write_bytes("\ufeffNoReply@X.com\n\n  # comment\n  Newsletter  \n#x\n".encode())
+    assert exporter.load_ignore_list(path) == ["noreply@x.com", "newsletter"]
+
+
+@pytest.mark.parametrize("mail, ignored", [
+    (FakeMail("a", subject="Your WEEKLY digest"), True),                     # subject pattern
+    (FakeMail("a", name="Jira Notifications"), True),                        # SenderName
+    (FakeMail("a", address="NoReply@acme.com"), True),                       # SenderEmailAddress
+    (FakeMail("a", address="/O=EXCH/CN=BOT", smtp="noreply@acme.com"), True),  # Exchange SMTP
+    (FakeMail("a", address="priya@acme.com"), False),                        # GetExchangeUser raises
+])
+def test_is_ignored(tmp_path, mail, ignored):
+    ex = make_exporter(tmp_path, ignore_from=["noreply@", "jira"], ignore_subject=["weekly digest"])
+    assert ex.is_ignored(mail) is ignored
+
+
+def test_no_ignore_patterns_never_ignore(tmp_path):
+    assert not make_exporter(tmp_path).is_ignored(FakeMail("a", address="noreply@acme.com"))
+
+
+def test_export_item_ignored_is_counted_not_saved_or_remembered(tmp_path):
+    state = {}
+    ex = make_exporter(tmp_path, state, ignore_subject=["budget"])
+    assert not ex.export_item(FakeMail("a"))
+    assert (ex.ignored, ex.skipped, len(ex.saved_paths)) == (1, 0, 0)
+    assert state == {} and not (tmp_path / "out").exists()
+    ex.ignore_subject = []  # list edited later: the same email now exports
+    assert ex.export_item(FakeMail("a"))
+    assert set(state) == {"a"}
+
+
+@pytest.mark.parametrize("action", [["--days", "1"], ["--list-folders"]])
+def test_missing_explicit_ignore_file_fails_before_outlook(tmp_path, monkeypatch, capsys, action):
+    def no_outlook():
+        raise AssertionError("must fail before connecting to Outlook")
+    monkeypatch.setattr(exporter, "connect_to_outlook", no_outlook)
+    argv = [*action, "--vault", str(tmp_path), "--ignore-from-file", str(tmp_path / "nope.txt")]
+    assert exporter.main(argv) == 1
+    assert "ignore file not found" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("argv", [

@@ -299,7 +299,11 @@ def run(args: argparse.Namespace) -> int:
     output_dir = (args.output_dir or vault / INBOX_DIRNAME).resolve()
     state_path = (args.state_file or vault / STATE_RELATIVE_PATH).resolve()
 
-    exported = load_state(state_path)  # before connecting: a corrupt state file fails fast
+    # Before connecting, so a corrupt state file or a mistyped ignore file fails fast.
+    exported = load_state(state_path)
+    for explicit_path in (args.ignore_from_file, args.ignore_subject_file):
+        if explicit_path and not explicit_path.exists():
+            raise ExportError(f"ignore file not found: {explicit_path}")
     application, namespace = connect_to_outlook()
     if args.list_folders:
         for mailbox in namespace.Folders:
@@ -308,9 +312,6 @@ def run(args: argparse.Namespace) -> int:
 
     ignore_from_path = args.ignore_from_file or IGNORE_FROM_PATH
     ignore_subject_path = args.ignore_subject_file or IGNORE_SUBJECT_PATH
-    for explicit, path in ((args.ignore_from_file, ignore_from_path), (args.ignore_subject_file, ignore_subject_path)):
-        if explicit and not path.exists():
-            raise ExportError(f"ignore file not found: {path}")
     exporter = MailExporter(output_dir, exported, dry_run=args.dry_run,
                             ignore_from=load_ignore_list(ignore_from_path),
                             ignore_subject=load_ignore_list(ignore_subject_path))

@@ -24,6 +24,7 @@ cross-linking and bookkeeping. Co-evolve this file: when a convention changes, u
 | `wiki/projects/` | topics that span several threads | Claude |
 | `wiki/answers/` | filed answers to questions worth keeping | Claude |
 | `wiki/digests/` | weekly/periodic digests, only when asked | Claude |
+| `wiki/drafts/` | reply drafts, never sent | Claude |
 | `wiki/index.md`, `wiki/log.md` | catalogue and chronological log | Claude |
 | `bases/` | Obsidian Bases dashboards (read-only views over frontmatter) | user/Claude |
 
@@ -84,6 +85,8 @@ tags:
 Sections: `## Summary` (current state) · `## Timeline` (one dated bullet per email, cited) ·
 `## Decisions` · `## Open items` (`- [ ] task — owner — due`) · `## Attachments` (notable ones).
 A forward (FW:) of an existing thread is merged into that thread's page.
+Actionable threads are `open` or `waiting` (fyi and closed are not); a `waiting` thread with no
+activity for more than 7 days is a nudge. Lint, `/email-today` and `bases/Threads.base` all use this.
 
 **person** — `wiki/people/<First Last>.md`
 ```yaml
@@ -113,6 +116,11 @@ threads share a topic, or when the user names one.
 
 **answer** — `wiki/answers/YYYY-MM-DD <question>.md`: `type: answer`, `asked`, `sources`.
 **digest** — `wiki/digests/YYYY-Www.md`: `type: digest`, `period`.
+**draft** — `wiki/drafts/Draft - <Thread page name>.md` (a distinct name, so `[[Thread]]` links never
+resolve to it): `type: draft`, `thread`, `to`, `subject`, `created`, `sources`.
+Body is paste-ready reply text plus `## Notes`; never sent, not indexed, overwritten per thread.
+Drafts are unsent proposals, never a source: don't cite or quote them as facts (exclude `wiki/drafts/`
+when searching the wiki to answer questions).
 
 ## Triage (decide per email before compiling)
 
@@ -156,4 +164,4 @@ index.md with `type: index` frontmatter, `# Email wiki index`, the dashboards li
   ranked/semantic search and backlinks.
 - Lint: a PostToolUse hook (`.claude/hooks/ruff_check.py`) runs `ruff check` on every `.py` file after
   Edit/Write and reports violations back; run `uv run --frozen ruff check .` for the whole repo.
-- Workflows: `/email-ingest`, `/email-ask`, `/email-lint`, `/email-today` (see `.claude/skills/`).
+- Workflows: `/email-ingest`, `/email-ask`, `/email-lint`, `/email-today`, `/email-draft` (see `.claude/skills/`).

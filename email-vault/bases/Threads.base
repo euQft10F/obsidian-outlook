@@ -2,6 +2,8 @@ filters:
   and:
     - file.inFolder("wiki/threads")
     - type == "thread"
+formulas:
+  actionable: 'status == "open" || status == "waiting"'  # CLAUDE.md: open or waiting are actions; fyi and closed are not
 properties:
   note.next_action:
     displayName: Next action
@@ -40,13 +42,57 @@ views:
     name: Overdue
     filters:
       and:
-        - status != "closed"
+        - formula.actionable
         - due < today()
     order:
       - file.name
       - status
       - due
       - next_action
+  - type: table
+    name: Due this week
+    filters:
+      and:
+        - formula.actionable
+        - due >= today()
+        - 'due <= today() + "7d"'
+    order:
+      - file.name
+      - status
+      - owner
+      - next_action
+      - due
+    sort:
+      - property: due
+        direction: ASC
+  - type: table
+    name: Nudge
+    filters:
+      and:
+        - status == "waiting"
+        - 'last_activity < today() - "7d"'
+    order:
+      - file.name
+      - owner
+      - next_action
+      - last_activity
+      - due
+    sort:
+      - property: last_activity
+        direction: ASC
+  - type: table
+    name: By project
+    filters:
+      and:
+        - formula.actionable
+    groupBy:
+      property: project
+      direction: ASC
+    order:
+      - file.name
+      - status
+      - next_action
+      - due
   - type: table
     name: All threads
     order:
