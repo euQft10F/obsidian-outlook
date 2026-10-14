@@ -1,0 +1,8 @@
+# Search-only overrides (ripgrep / Claude Code's Grep read this; git does not).
+# .gitignore keeps email data out of git; this keeps the text parts visible to search.
+# Archived .msg originals and the inbox stay hidden: they are binary.
+!/wiki/
+!/wiki/**
+!/raw/
+!/raw/**
+/raw/msg/

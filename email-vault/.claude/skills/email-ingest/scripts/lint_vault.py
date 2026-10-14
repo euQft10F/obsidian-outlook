@@ -3,7 +3,8 @@
 
 Checks the things a script can count, so the LLM only has to judge the rest:
 broken links, orphans, pages missing from index.md, bad frontmatter, duplicate people,
-overdue / stale threads, compiled emails no wiki page cites, inbox backlog and failures.
+overdue / stale threads, compiled emails no wiki page cites, inbox backlog and failures,
+plus owner setup (template placeholders left in CLAUDE.md, no owner address configured).
 
     python lint_vault.py [--stale-days 7] [--json]
 """
@@ -23,6 +24,7 @@ from vaultlib import (
     FAILED_DIRNAME,
     INBOX_DIRNAME,
     Frontmatter,
+    check_setup,
     find_vault,
     iter_files,
     iter_notes,
@@ -183,7 +185,7 @@ def email_file_names(folder: Path) -> list[str]:
 
 
 def render_markdown(today: dt.date, page_count: int, status_counts: dict[str, int], unconverted: list[str],
-                    failed: list[str], report: dict[str, list[str]]) -> None:
+                    failed: list[str], setup: list[str], report: dict[str, list[str]]) -> None:
     print(f"# Vault lint — {today}\n")
     print(f"- Wiki pages: {page_count}")
     if status_counts:
@@ -194,6 +196,10 @@ def render_markdown(today: dt.date, page_count: int, status_counts: dict[str, in
     if failed:
         shown = ", ".join(failed[:MAX_FAILED_NAMES_SHOWN])
         print(f"- Failed conversions in 00-inbox/_failed: {len(failed)} ({shown})")
+    if setup:
+        print(f"\n## Setup ({len(setup)})")
+        for warning in setup:
+            print(f"- {warning}")
     if not report:
         print("\nNo structural issues found.")
     for title, items in report.items():
@@ -246,6 +252,7 @@ def main(argv: list[str] | None = None) -> int:
     inbox = vault / INBOX_DIRNAME
     unconverted = email_file_names(inbox)
     failed = email_file_names(inbox / FAILED_DIRNAME)
+    setup = check_setup(vault, owner)
 
     if args.json:
         summary = {
@@ -253,11 +260,12 @@ def main(argv: list[str] | None = None) -> int:
             "raw_emails": dict(status_counts),
             "inbox_unconverted": len(unconverted),
             "inbox_failed": failed,
+            "setup": setup,
             "issues": dict(report),
         }
         print(json.dumps(summary, ensure_ascii=False, indent=1))
     else:
-        render_markdown(today, len(pages), status_counts, unconverted, failed, report)
+        render_markdown(today, len(pages), status_counts, unconverted, failed, setup, report)
     return 0
 
 

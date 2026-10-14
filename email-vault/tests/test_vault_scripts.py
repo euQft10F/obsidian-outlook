@@ -196,3 +196,32 @@ def test_lint_reports_broken_orphan_and_overdue(lint_vault, vault, monkeypatch, 
     assert issues["Orphan pages (no links from other wiki pages)"] == ["wiki/people/Lonely.md"]
     assert issues["Pages not listed in wiki/index.md"] == ["wiki/people/Lonely.md"]
     assert any("due 2020-01-01" in line for line in issues["Overdue threads (status open/waiting, due date passed)"])
+
+
+# ---------------------------------------------------------------- owner setup
+
+TEMPLATE_OWNER = "## Owner (fill in)\n\n- Owner: <your name>\n- Owner's addresses: <you@work.com>\n"
+
+
+@pytest.mark.parametrize("schema, owner, expected", [
+    (TEMPLATE_OWNER, set(), ["<your name>, <you@work.com>", "EMAIL_VAULT_ME"]),
+    (TEMPLATE_OWNER, {"max@work.com"}, ["<your name>, <you@work.com>"]),
+    ("## Owner\n\n- Owner: Max\n- Owner's addresses: max@work.com\n", {"max@work.com"}, []),
+])
+def test_check_setup(vaultlib, vault, schema, owner, expected):
+    (vault / "CLAUDE.md").write_text(schema, encoding="utf-8")
+    warnings = vaultlib.check_setup(vault, owner)
+    assert len(warnings) == len(expected)
+    assert all(fragment in warning for fragment, warning in zip(expected, warnings, strict=True))
+
+
+def test_setup_warnings_reach_lint_and_converter_output(lint_vault, msg_to_md, vault, monkeypatch, capsys):
+    monkeypatch.delenv("EMAIL_VAULT_ME", raising=False)
+    (vault / "CLAUDE.md").write_text(TEMPLATE_OWNER, encoding="utf-8")
+    run_cli(lint_vault, monkeypatch, "--vault", str(vault))
+    assert "## Setup (2)" in capsys.readouterr().out
+    run_cli(msg_to_md, monkeypatch, "--vault", str(vault), "--json")
+    assert len(json.loads(capsys.readouterr().out)["setup"]) == 2
+    monkeypatch.setenv("EMAIL_VAULT_ME", "max@work.com")
+    run_cli(msg_to_md, monkeypatch, "--vault", str(vault))
+    assert "EMAIL_VAULT_ME" not in capsys.readouterr().out

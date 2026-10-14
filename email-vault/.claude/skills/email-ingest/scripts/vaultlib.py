@@ -16,6 +16,7 @@ INBOX_DIRNAME = "00-inbox"
 FAILED_DIRNAME = "_failed"  # inside the inbox: files that would not parse
 EMAIL_SUFFIXES = (".msg", ".eml")  # what the inbox accepts
 CODE_SPAN_RE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
+OWNER_PLACEHOLDER_RE = re.compile(r"<you(?:r\b|@)[^>\n]*>")  # CLAUDE.md template values: <your name>, <you@work.com>
 # Characters Windows forbids in file names, plus ones that break Obsidian [[links]] and tags.
 BAD_FILENAME_CHARS_RE = re.compile(r'[\\/:*?"<>|#^\[\]\x00-\x1f]+')
 WINDOWS_RESERVED_RE = re.compile(r"^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$", re.I)
@@ -58,6 +59,18 @@ def owner_addresses(cli_values: Iterable[str]) -> set[str]:
     """The owner's own addresses: `--me` values plus the comma-separated $EMAIL_VAULT_ME, lowercased."""
     from_env = os.environ.get("EMAIL_VAULT_ME", "").split(",")
     return {address.strip().lower() for address in [*cli_values, *from_env] if address.strip()}
+
+
+def check_setup(vault: Path, owner: set[str]) -> list[str]:
+    """Warnings about owner configuration the CLAUDE.md template leaves for the user to fill in."""
+    warnings = []
+    schema = vault / "CLAUDE.md"
+    placeholders = OWNER_PLACEHOLDER_RE.findall(schema.read_text(encoding="utf-8")) if schema.exists() else []
+    if placeholders:
+        warnings.append(f"CLAUDE.md Owner section still has template placeholders: {', '.join(placeholders)}")
+    if not owner:
+        warnings.append("No owner address known: pass --me or set env EMAIL_VAULT_ME")
+    return warnings
 
 
 def parse_frontmatter(text: str) -> Frontmatter:

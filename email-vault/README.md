@@ -13,7 +13,7 @@ Outlook ──save .msg──▶ 00-inbox/ ──msg_to_md.py──▶ raw/email
                          wiki/threads · people · orgs · projects · index.md · log.md
                                                         │
                               /email-ask  ◀─────────────┤──────────▶  Obsidian: Bases, graph, search
-                              /email-lint (health check)
+                              /email-lint (health check) · /email-today (morning brief)
 ```
 
 Why two stages: conversion is cheap, exact and repeatable (headers, threading, attachments,
@@ -36,7 +36,7 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
 3. **Claude Code** installed and signed in. Then run `claude` in the vault root.
    kepano's Obsidian skills (obsidian-markdown, obsidian-bases, json-canvas, obsidian-cli) are
    vendored in `.claude/skills/` (see `OBSIDIAN-SKILLS.md`), so nothing extra to install. They and
-   the three email skills load automatically because Claude Code reads project skills from the
+   the four email skills load automatically because Claude Code reads project skills from the
    folder it starts in.
 4. **Replace the placeholders in the Owner section at the top of `CLAUDE.md`** with your name and
    your own email address(es) (and any senders to ignore). Claude relies on this to know which
@@ -51,6 +51,7 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
 | Save emails | Drag from Outlook into `00-inbox/`, or use an exporter (below) |
 | Compile | In Claude Code: `/email-ingest` (15 threads per run; `/email-ingest all` for a backlog) |
 | Ask | `/email-ask what is waiting on me this week?` · `/email-ask how is Tom connected to the Q3 budget?` |
+| Brief | `/email-today` — overdue, due today/soon, who to nudge (`/email-today 3` for a 3-day nudge threshold) |
 | Browse | Obsidian: `bases/Threads.base` (I owe / Waiting / Overdue), `bases/People.base`, graph view, backlinks |
 | Maintain | `/email-lint` weekly |
 
@@ -99,7 +100,7 @@ bases/                    Obsidian Bases dashboards
 tools/                    Outlook exporter (export_outlook_msg.py)
 pyproject.toml  uv.lock   Python environment for uv (requirements.txt for uv pip / pip)
 CLAUDE.md                 the schema: rules, page templates, triage — edit it as you go
-.claude/skills/           email-ingest (+ scripts/), email-ask, email-lint
+.claude/skills/           email-ingest (+ scripts/), email-ask, email-lint, email-today
 ```
 
 Design choices worth knowing:
@@ -149,7 +150,12 @@ Everything Claude needs is in the vault:
   Each skill's `allowed-tools` is scoped to the scripts it actually uses.
 
 ### Corporate-use notes
-- `raw/` is git-ignored: email bodies, attachments and originals are never committed.
+- `raw/` and all of `wiki/` are git-ignored (only empty folder markers are committed), so
+  Obsidian Git or any commit never captures email bodies, attachments, originals or the summaries
+  compiled from them. A fresh clone starts with an empty wiki; the first ingest recreates
+  `wiki/index.md` and `wiki/log.md`.
+- `.ignore` re-includes `wiki/` and `raw/` (except the binary `raw/msg/`) for search only: ripgrep
+  (Claude Code's Grep) honours `.gitignore` and would otherwise skip them; git does not read `.ignore`.
 - `pending.py mark` only touches `type: email` notes under `raw/emails/`; `msg_to_md.py` only
   accepts files inside `00-inbox/`.
 - Attachments of executable/script types are stored with a `.blocked` suffix and never parsed;
@@ -163,7 +169,7 @@ Automation options:
   `/email-ingest`, or headless `claude -p "/email-ingest"` from Task Scheduler. Desktop
   scheduled tasks run on your machine, so they see the vault's project skills; cloud
   routines don't.
-- To use the workflow from other folders, copy the three skill folders into
+- To use the workflow from other folders, copy the four email skill folders into
   `~/.claude/skills/` and keep the scripts' `--vault` pointing here.
 
 

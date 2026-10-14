@@ -27,6 +27,7 @@ Scripts: `S=.claude/skills/email-ingest/scripts`. Use the vault's Python (see CL
 
 Run `<python> $S/msg_to_md.py`. Report converted / duplicate / failed counts in one line.
 If files failed, name them and point to `00-inbox/_failed/*.error.txt`; carry on with the rest.
+Relay any `Setup warning:` lines (owner not configured) in the run report and continue.
 
 ## 2. Pick a batch
 
@@ -64,7 +65,7 @@ Mark after each thread group so an interrupted run resumes cleanly.
 
 ## 5. Index and log
 
-Update `wiki/index.md` (add/move lines; keep the one-line summaries current). Append to
+Create either file first if missing (CLAUDE.md → index.md and log.md). Update `wiki/index.md` (add/move lines; keep the one-line summaries current). Append to
 `wiki/log.md`:
 
 ```

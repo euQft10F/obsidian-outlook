@@ -30,7 +30,8 @@ allowed-tools:
    - Topics spanning several threads with no project page.
 4. **Ask before** merging pages, deleting pages, or changing many thread statuses at once;
    list proposed changes and apply after the user agrees.
-5. Append `## [YYYY-MM-DD] lint | <n> fixes` with bullets to `wiki/log.md`, then report:
+5. Append `## [YYYY-MM-DD] lint | <n> fixes` with bullets to `wiki/log.md` (create it first if
+   missing, per CLAUDE.md → index.md and log.md), then report:
    fixes made, proposals awaiting a yes, and overdue items for the owner.
 
 Never modify `raw/`.

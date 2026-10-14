@@ -136,6 +136,11 @@ Skipped emails stay fully searchable in `raw/`; they just don't get wiki pages.
 `## [2026-10-12] ingest | 14 emails, 6 threads` followed by bullets of pages created/updated.
 Prefixes: `ingest`, `query`, `lint`, `edit`. `grep "^## \[" wiki/log.md | tail -5` shows recent work.
 
+Both are git-ignored, so a fresh clone has neither. Before writing to a missing one, create it:
+index.md with `type: index` frontmatter, `# Email wiki index` and the sections above; log.md with
+`type: log` frontmatter, `# Log` and the line
+`Append-only. Newest at the bottom. Format: ## [YYYY-MM-DD] ingest|query|lint|edit | title`.
+
 ## Tools
 
 - Python: `uv run --frozen python <script>` from the vault root (the environment is managed by uv: `pyproject.toml`, `uv.lock`, `.venv/`;
@@ -149,4 +154,4 @@ Prefixes: `ingest`, `query`, `lint`, `edit`. `grep "^## \[" wiki/log.md | tail -
   ranked/semantic search and backlinks.
 - Lint: a PostToolUse hook (`.claude/hooks/ruff_check.py`) runs `ruff check` on every `.py` file after
   Edit/Write and reports violations back; run `uv run --frozen ruff check .` for the whole repo.
-- Workflows: `/email-ingest`, `/email-ask`, `/email-lint` (see `.claude/skills/`).
+- Workflows: `/email-ingest`, `/email-ask`, `/email-lint`, `/email-today` (see `.claude/skills/`).

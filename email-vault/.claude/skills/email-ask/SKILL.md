@@ -56,4 +56,5 @@ offer to save it. Write only after the user agrees or asked to "save"/"file" it,
 only `wiki/answers/`, `wiki/digests/`, `wiki/index.md` and `wiki/log.md`. Then write
 `wiki/answers/YYYY-MM-DD <question>.md` (or `wiki/digests/YYYY-Www.md`) with
 `type: answer`/`digest` and `sources`, link it from related pages and `wiki/index.md`, and
-append `## [YYYY-MM-DD] query | <question>` to `wiki/log.md`.
+append `## [YYYY-MM-DD] query | <question>` to `wiki/log.md` (create either file first if missing,
+per CLAUDE.md → index.md and log.md).

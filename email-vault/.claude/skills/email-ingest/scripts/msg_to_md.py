@@ -40,6 +40,7 @@ from vaultlib import (
     EMAIL_SUFFIXES,
     FAILED_DIRNAME,
     INBOX_DIRNAME,
+    check_setup,
     find_vault,
     owner_addresses,
     sanitize_filename,
@@ -822,16 +823,20 @@ def select_files(inbox: Path, explicit_files: list[str]) -> list[Path]:
     return files
 
 
-def print_summary(vault: Path, results: list[ConversionResult], *, dry_run: bool, as_json: bool) -> None:
+def print_summary(vault: Path, results: list[ConversionResult], setup: list[str], *,
+                  dry_run: bool, as_json: bool) -> None:
     counts: dict[str, int] = {}
     for result in results:
         counts[result.status] = counts.get(result.status, 0) + 1
     if as_json:
-        payload = {"vault": str(vault), "counts": counts, "results": [result.to_dict() for result in results]}
+        payload = {"vault": str(vault), "counts": counts, "setup": setup,
+                   "results": [result.to_dict() for result in results]}
         print(json.dumps(payload, ensure_ascii=False, indent=1))
         return
     print(f"Vault: {vault}{'  (dry run)' if dry_run else ''}")
     print("Summary: " + (", ".join(f"{status} {count}" for status, count in counts.items()) or "inbox empty"))
+    for warning in setup:
+        print(f"Setup warning: {warning}")
     for result in results:
         print(f"  [{result.status}] {result.file}  ->  {result.note or result.error or ''}")
 
@@ -845,11 +850,12 @@ def main(argv: list[str] | None = None) -> int:
     except RefusedFilesError as refusal:
         print(refusal)
         return 2
-    converter = Converter(vault, owner_addresses(args.me), dry_run=args.dry_run, keep_originals=args.keep)
+    owner = owner_addresses(args.me)
+    converter = Converter(vault, owner, dry_run=args.dry_run, keep_originals=args.keep)
     for file in files:
         converter.convert_file(file)
     converter.save_index()
-    print_summary(vault, converter.results, dry_run=args.dry_run, as_json=args.json)
+    print_summary(vault, converter.results, check_setup(vault, owner), dry_run=args.dry_run, as_json=args.json)
     return 1 if any(result.status == "failed" for result in converter.results) else 0
 
 
