@@ -15,12 +15,29 @@ views:
     filters:
       and:
         - status == "open"
+        - 'owner == "me" || owner.isEmpty()'
     order:
       - file.name
       - next_action
       - due
       - last_activity
       - participants
+    sort:
+      - property: due
+        direction: ASC
+  - type: table
+    name: Team owes  # CLAUDE.md → Team mail: open, owned by the team or a teammate
+    filters:
+      and:
+        - status == "open"
+        - owner != "me"
+        - '!owner.isEmpty()'
+    order:
+      - file.name
+      - owner
+      - next_action
+      - due
+      - last_activity
     sort:
       - property: due
         direction: ASC

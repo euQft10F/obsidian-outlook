@@ -37,6 +37,8 @@ omitted if empty:
 - **Next 3 days** — `due` from T+1 to T+3.
 - **Nudge** — `status: waiting` and `last_activity` more than N days before T; the thread's
   `owner` is who to chase.
+- **Team, unassigned** — `status: open` and `owner: team` (CLAUDE.md → Team mail), oldest
+  `last_activity` first, with `— since YYYY-MM-DD` instead of `due` when there is none.
 - **Pending emails** — one line with the pending count.
 
 Each line: `[[Thread page]] — next_action — owner — due YYYY-MM-DD` (drop `due` if none).

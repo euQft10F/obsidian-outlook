@@ -18,6 +18,7 @@ EMAIL_SUFFIXES = (".msg", ".eml")  # what the inbox accepts
 CODE_SPAN_RE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
 OWNER_SECTION_RE = re.compile(r"^## Owner\b.*?(?=^## |\Z)", re.S | re.M)
 OWNER_ADDRESSES_LINE_RE = re.compile(r"^- Owner's addresses:(.*)$", re.M)
+TEAM_ADDRESSES_LINE_RE = re.compile(r"^- Team addresses:(.*)$", re.M)
 OWNER_PLACEHOLDER_RE = re.compile(r"<you(?:r\b|@)[^>\n]*>")  # CLAUDE.md template values: <your name>, <you@work.com>
 EMAIL_ADDRESS_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 # Characters Windows forbids in file names, plus ones that break Obsidian [[links]] and tags.
@@ -72,11 +73,22 @@ def owner_addresses(cli_values: Iterable[str], vault: Path | None = None) -> set
     """The owner's own addresses, lowercased: `--me` values, the comma-separated $EMAIL_VAULT_ME
     and, given a vault, the addresses filled in on CLAUDE.md's "Owner's addresses:" line."""
     from_env = os.environ.get("EMAIL_VAULT_ME", "").split(",")
-    from_schema = []
-    if vault:
-        line = OWNER_ADDRESSES_LINE_RE.search(owner_section(vault))
-        from_schema = EMAIL_ADDRESS_RE.findall(OWNER_PLACEHOLDER_RE.sub("", line.group(1))) if line else []
+    from_schema = _addresses_on_line(vault, OWNER_ADDRESSES_LINE_RE) if vault else set()
     return {address.strip().lower() for address in [*cli_values, *from_env, *from_schema] if address.strip()}
+
+
+def team_addresses(vault: Path) -> set[str]:
+    """Shared aliases (distribution lists) the owner also tracks, lowercased, from CLAUDE.md's
+    "Team addresses:" line. Deliberately separate from owner_addresses: team mail is not "me"."""
+    return _addresses_on_line(vault, TEAM_ADDRESSES_LINE_RE)
+
+
+def _addresses_on_line(vault: Path, line_re: re.Pattern[str]) -> set[str]:
+    """Addresses on one line of the Owner section, ignoring template placeholders and code-span examples."""
+    line = line_re.search(owner_section(vault))
+    if not line:
+        return set()
+    return {address.lower() for address in EMAIL_ADDRESS_RE.findall(OWNER_PLACEHOLDER_RE.sub("", line.group(1)))}
 
 
 def check_setup(vault: Path, owner: set[str]) -> list[str]:

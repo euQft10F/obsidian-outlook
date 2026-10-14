@@ -240,6 +240,39 @@ def test_owner_addresses_read_from_claude_md(vaultlib, vault, monkeypatch):
     assert vaultlib.check_setup(vault, {"max@work.com"}) == []  # placeholders outside the Owner section don't count
 
 
+TEAM_LINE_UNFILLED = ("- Team addresses: none  (optional: distribution lists I also track, e.g. `team@work.com`; "
+                      "the scripts read this line)\n")
+
+
+def test_team_addresses_are_optional_and_separate_from_owner(vaultlib, vault, monkeypatch):
+    monkeypatch.delenv("EMAIL_VAULT_ME", raising=False)
+    owner = "## Owner\n\n- Owner: Max\n- Owner's addresses: max@work.com\n"
+    (vault / "CLAUDE.md").write_text(owner, encoding="utf-8")
+    assert vaultlib.team_addresses(vault) == set()  # no Team line at all
+    (vault / "CLAUDE.md").write_text(owner + TEAM_LINE_UNFILLED, encoding="utf-8")
+    assert vaultlib.team_addresses(vault) == set()  # the code-span example is not an address
+    assert vaultlib.check_setup(vault, vaultlib.owner_addresses([], vault)) == []  # unfilled Team is not a warning
+    (vault / "CLAUDE.md").write_text(owner + "- Team addresses: DreamTeam@coolco.uk, ops@coolco.uk\n", encoding="utf-8")
+    assert vaultlib.team_addresses(vault) == {"dreamteam@coolco.uk", "ops@coolco.uk"}
+    assert vaultlib.owner_addresses([], vault) == {"max@work.com"}  # team mail is not "me"
+
+
+@pytest.mark.parametrize("team_line, flagged", [
+    (TEAM_LINE_UNFILLED, {"priya@acme.co.uk", "dreamteam@coolco.uk"}),
+    ("- Team addresses: dreamteam@coolco.uk\n", {"priya@acme.co.uk"}),
+])
+def test_lint_never_flags_team_alias_as_correspondent(lint_vault, vault, monkeypatch, capsys, team_line, flagged):
+    monkeypatch.delenv("EMAIL_VAULT_ME", raising=False)
+    (vault / "CLAUDE.md").write_text("## Owner\n\n- Owner's addresses: max@work.com\n" + team_line, encoding="utf-8")
+    for n in range(3):
+        for sender in ("priya@acme.co.uk", "dreamteam@coolco.uk", "max@work.com"):
+            write_note(vault, f"{sender} {n}", from_email=sender, wiki_status="pending")
+    run_cli(lint_vault, monkeypatch, "--vault", str(vault), "--json")
+    issues = json.loads(capsys.readouterr().out)["issues"]
+    frequent = next(items for key, items in issues.items() if key.startswith("Frequent correspondents"))
+    assert {line.split(" ")[0] for line in frequent} == flagged
+
+
 def test_check_setup_tolerates_non_utf8_claude_md(vaultlib, vault):
     (vault / "CLAUDE.md").write_bytes("## Owner\n\n- Owner: Zoë <your name>\n".encode("cp1252"))
     assert "<your name>" in vaultlib.check_setup(vault, {"me@x.com"})[0]

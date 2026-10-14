@@ -10,6 +10,8 @@ cross-linking and bookkeeping. Co-evolve this file: when a convention changes, u
 - Owner: <your name>  — refer to them as "me" on pages, never create a person page for them
 - Owner's addresses: <you@work.com>, <you@home.com>  (the scripts read this line; `--me` or env `EMAIL_VAULT_ME` add more)
 - Ignore senders: <noreply@…, notifications@…>  (always triage as notification)
+- Team addresses: none  (optional: distribution lists I also track, e.g. `team@work.com`; the scripts read this line)
+- Team: none; members: none  (only with Team addresses: team name, then teammates as First Last, comma-separated)
 
 ## Layers and folders
 
@@ -73,9 +75,9 @@ stays 3–6 lines.
 type: thread
 thread_ids:            # every thread_id merged into this page
   - "ref-f42da99a21c7dfe8"
-status: open           # open = I owe something · waiting = waiting on them · fyi · closed
+status: open           # open = our side owes (me, the team or a teammate) · waiting = waiting on them · fyi · closed
 next_action: "Send VIX overlay sizing to Tom"
-owner: me              # me | <person name>
+owner: me              # me | team | <person name> (team only with Team addresses; see Team mail)
 due: 2026-10-14        # omit if none
 last_activity: 2026-10-06
 participants:
@@ -133,17 +135,34 @@ when searching the wiki to answer questions).
 |---|---|---|
 | actionable | a request, question, deadline, approval | thread page (status open/waiting), person pages, open items |
 | conversation | discussion, update, decision | thread page, person pages, project if any |
-| fyi | announcements addressed to me personally | short thread page with status fyi, or a line on a project page |
+| fyi | announcements addressed to me personally (or to the team) | short thread page with status fyi, or a line on a project page |
 | notification | system alerts, calendar auto-mails, receipts, auto-replies | `mark skipped --reason notification` |
 | newsletter | marketing, bulk lists | `mark skipped --reason newsletter` |
 
 Skipped emails stay fully searchable in `raw/`; they just don't get wiki pages.
 
+### Team mail
+
+Applies only when the Owner section lists Team addresses; otherwise `owner` is `me` or an outside person.
+An email is team mail when a team address is among its `participants` (case-insensitive).
+Team addresses are a group, not "me" and not a person: write "the team" on pages, never make a person page for one.
+
+Set the thread `owner`, re-judging on every new email:
+- `me`: the email asks me personally (I'm named, or addressed directly besides the alias), or I took it on.
+- `<Teammate>`: a member (Owner section → Team members) explicitly commits ("I'll send it Monday") or replies with
+  the substance. A vague "will look" leaves it `team`.
+- `team`: nobody has taken it yet.
+
+`open` stays for anything our side owes (me, team or a teammate); `waiting` and `fyi` are as for other mail.
+When a teammate's reply settles the ask, the thread is `closed`, or `waiting` with the outside person as owner.
+Example: a client asks dreamteam@ for a rate card by 2026-10-15 → `open`, `owner: team`; Tom replies to all
+"I'll get it to you Monday" → `owner: "Tom Reid"`; Tom sends it → `closed`.
+
 ## index.md and log.md
 
 `wiki/index.md` — a dashboards line under the title
 (`Dashboards: [[Threads.base|Threads]] · [[People.base|People]] · [[Emails.base|Emails]]`), then one
-line per wiki page under `## Projects`, `## Open threads (I owe)`, `## Waiting on others`,
+line per wiki page under `## Projects`, `## Open threads (I owe)`, `## Team owes` (only with Team addresses), `## Waiting on others`,
 `## FYI and closed threads`, `## People`, `## Orgs`, `## Answers`, `## Digests`:
 `- [[Page]] — one-line summary (updated YYYY-MM-DD)`. Read it first when answering.
 

@@ -50,9 +50,10 @@ attachment text when the email refers to it). Then:
 2. **Thread page.** Grep `wiki/threads/` for the `thread_id`, then for the `thread_subject`.
    Update the existing page or create one. Refresh `## Summary`, append one cited timeline
    bullet per email, record decisions, set `status`, `next_action`, `owner`, `due`,
-   `last_activity`, add every new `thread_id` and source.
-3. **People.** For each human sender/recipient who matters (skip the owner, distribution
-   lists, no-reply addresses): Grep `wiki/people/` for the address; update `last_seen`,
+   `last_activity`, add every new `thread_id` and source. For team mail, set `owner` per
+   CLAUDE.md → Team mail.
+3. **People.** For each human sender/recipient who matters (skip the owner, team addresses and
+   other distribution lists, no-reply addresses): Grep `wiki/people/` for the address; update `last_seen`,
    `## Threads` and add timeline facts (asks, commitments, roles they state); create the page if
    missing, adding the name as written in the email to `aliases`.
 4. **Org** by email domain (skip public mail domains). **Project**: link to an existing project
@@ -88,6 +89,7 @@ Ignore every other section; that is `/email-lint`'s job.
 
 ## 6. Report
 
-Reply in a few lines: what came in, new or changed **actions and deadlines for me**, anything
+Reply in a few lines: what came in, new or changed **actions and deadlines for me**, then (if any)
+**for the team** with who took each one or "unassigned", anything
 waiting on others that is now overdue, contradictions found, and how many emails are still
 pending (`raw_emails` in the lint output). If some remain, say so and suggest running again.

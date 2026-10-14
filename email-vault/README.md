@@ -43,6 +43,14 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
    mailbox is yours, so it never creates a person page for you and treats mail you sent correctly.
    The scripts read your addresses from that line too, so emails you sent are tagged
    `direction: sent`; `--me` or `EMAIL_VAULT_ME` can add more.
+5. *Optional, team mail.* To also track what a team owes on a distribution list such as
+   `dreamteam@coolco.uk`, fill in `Team addresses` and `Team: <name>; members: …` in the Owner section.
+   Do **not** add the list to Owner's addresses: that would file every team request under "I owe".
+   Team threads get `owner: team` until a teammate takes them on (CLAUDE.md → Team mail), and they appear in
+   the **Team owes** view and in the brief's **Team, unassigned** section. A distribution list's copies already
+   arrive in your Inbox, so the exporter needs nothing extra (add `--folder` if an Outlook rule files them
+   elsewhere). Ask the team to keep the list on cc when replying; a reply sent only to the requester
+   never reaches the vault, so that thread stays unassigned. Leave both lines as `none` and nothing changes.
 
 ## 2. Daily use
 
@@ -53,7 +61,7 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
 | Ask | `/email-ask what is waiting on me this week?` · `/email-ask how is Tom connected to the Q3 budget?` |
 | Brief | `/email-today` — overdue, due today/soon, who to nudge (`/email-today 3` for a 3-day nudge threshold) |
 | Draft | `/email-draft Q3 budget agree to the 14 Oct deadline` — writes a reply to `wiki/drafts/` to paste into Outlook; nothing is sent |
-| Browse | Obsidian: `bases/Threads.base` (I owe / Waiting / Overdue / Due this week / Nudge / By project), `bases/People.base`, graph view, backlinks |
+| Browse | Obsidian: `bases/Threads.base` (I owe / Team owes / Waiting / Overdue / Due this week / Nudge / By project), `bases/People.base`, graph view, backlinks |
 | Maintain | `/email-lint` weekly (its report starts with a Setup section while the CLAUDE.md Owner section is unfilled) |
 
 Keep Claude Code and Obsidian side by side, as Karpathy does: Claude edits, Obsidian shows the
@@ -114,7 +122,7 @@ CLAUDE.md                 the schema: rules, page templates, triage — edit it 
 Design choices worth knowing:
 - **Organise by entity, not by mailbox folder.** Outlook folders are one-dimensional; a thread
   belongs to a project, several people and an org at once, so it's linked to each.
-- **Thread page = unit of work.** Each has `status` (open = I owe, waiting = they owe, fyi,
+- **Thread page = unit of work.** Each has `status` (open = I or my team owe, waiting = they owe, fyi,
   closed), `next_action`, `due`, `owner`, so Bases can show your open loops.
 - **Quoted history is folded, not deleted.** Replies quote the whole chain; the converter
   moves it into a collapsed callout so Claude reads only the new text, while search still finds it.

@@ -30,6 +30,7 @@ from vaultlib import (
     iter_notes,
     owner_addresses,
     parse_frontmatter,
+    team_addresses,
     utf8_stdout,
     wikilinks,
 )
@@ -165,9 +166,10 @@ class PageChecker:
             self.report[THREAD_NO_SOURCES].append(relative)
 
 
-def scan_raw_emails(vault: Path, cited_email_stems: set[str], owner: set[str], report: dict[str, list[str]]
-                    ) -> tuple[dict[str, int], dict[str, int]]:
-    """Returns (emails per wiki_status, emails per sender worth a person page)."""
+def scan_raw_emails(vault: Path, cited_email_stems: set[str], excluded_senders: set[str],
+                    report: dict[str, list[str]]) -> tuple[dict[str, int], dict[str, int]]:
+    """Returns (emails per wiki_status, emails per sender worth a person page).
+    `excluded_senders` (owner and team addresses) never count as correspondents."""
     status_counts: dict[str, int] = defaultdict(int)
     sender_counts: dict[str, int] = defaultdict(int)
     for path in iter_notes(vault / "raw" / "emails"):
@@ -175,7 +177,7 @@ def scan_raw_emails(vault: Path, cited_email_stems: set[str], owner: set[str], r
         status = frontmatter.get("wiki_status", "pending")
         status_counts[status] += 1
         sender = str(frontmatter.get("from_email", "")).lower()
-        if sender and status != "skipped" and sender not in owner and not AUTOMATED_SENDER_RE.search(sender):
+        if sender and status != "skipped" and sender not in excluded_senders and not AUTOMATED_SENDER_RE.search(sender):
             sender_counts[sender] += 1
         if status == "compiled" and path.stem.lower() not in cited_email_stems:
             report[UNCITED_EMAILS].append(path.relative_to(vault).as_posix())
@@ -247,7 +249,8 @@ def main(argv: list[str] | None = None) -> int:
     for source, link in links.broken:
         report[BROKEN_LINKS].append(f"{source} -> [[{link}]]")
 
-    status_counts, sender_counts = scan_raw_emails(vault, links.cited_email_stems, owner, report)
+    status_counts, sender_counts = scan_raw_emails(vault, links.cited_email_stems, owner | team_addresses(vault),
+                                                   report)
     for address, count in sorted(sender_counts.items(), key=lambda item: -item[1]):
         if count >= args.min_emails and address not in address_owners:
             report[f"Frequent correspondents (>= {args.min_emails} emails) with no person page"].append(

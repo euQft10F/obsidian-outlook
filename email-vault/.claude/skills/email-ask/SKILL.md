@@ -39,8 +39,9 @@ raw email and confirm it. If sources disagree, give the newest and mention the o
 ## Answer patterns
 
 - **Facts / "what did X say about Y"**: direct answer, then the supporting emails.
-- **Open loops**: threads with `status: open` (I owe) and `status: waiting` (they owe), sorted
-  by `due`, flagging overdue ones.
+- **Open loops**: threads with `status: open` and `owner: me` (I owe), `status: open` with any other
+  owner (the team or a teammate owes; CLAUDE.md → Team mail) and `status: waiting` (they owe),
+  sorted by `due`, flagging overdue ones.
 - **Connections ("how is A related to B", "who else is involved")**: walk links
   person ↔ thread ↔ project ↔ org; also shared `participants`, same email domain, shared
   attachments, and threads close in time. Show the path, e.g.
