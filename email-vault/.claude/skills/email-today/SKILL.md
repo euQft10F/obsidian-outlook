@@ -6,9 +6,9 @@ allowed-tools:
   - Read
   - Glob
   - Grep
-  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/pending.py stats*)
-  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py stats*)
-  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py stats*)
+  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/pending.py stats)
+  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py stats)
+  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py stats)
 ---
 
 # Morning brief

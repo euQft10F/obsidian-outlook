@@ -155,13 +155,22 @@ Everything Claude needs is in the vault:
   `uv run --frozen python …` or the `.venv` interpreter, so nothing is resolved or installed at
   run time) and wiki edits. It **denies** edits to `raw/`, WebFetch/WebSearch, `curl`/`wget`/
   `Invoke-WebRequest`, package installs, and the Gmail, Google Drive and Chrome connectors.
-  Each skill's `allowed-tools` is scoped to the scripts it actually uses.
+  Each skill's `allowed-tools` is scoped to the scripts it actually uses, and its Write/Edit to
+  `wiki/` (`/email-draft` to `wiki/drafts/`), so text in an email can't steer Claude into
+  silently editing a script, a skill or these settings: anything outside `wiki/` asks first.
+  Script rules name the file exactly (`pending.py` or `pending.py <args>`, not a prefix), so a
+  newly written `pending.py_x.py` isn't pre-approved. Don't ingest in auto-accept or bypass
+  permission modes, which skip those prompts.
 
-### Corporate-use notes
+### Use notes
 - `raw/` and all of `wiki/` are git-ignored (only empty folder markers are committed), so
   Obsidian Git or any commit never captures email bodies, attachments, originals or the summaries
   compiled from them. A fresh clone starts with an empty wiki; the first ingest recreates
   `wiki/index.md` and `wiki/log.md`.
+- `.githooks/pre-commit` refuses any commit that stages files under `raw/`, `00-inbox/` or `wiki/`
+  (other than `.gitkeep`), so `git add -f` or a plugin can't push email content either. Git
+  doesn't enable repo hooks automatically: run once per clone, from the git root,
+  `git config core.hooksPath email-vault/.githooks` (or `.githooks` if the vault is the git root).
 - `.ignore` re-includes `wiki/` and the `.md` files under `raw/` for search only: ripgrep (Claude
   Code's Grep) honours `.gitignore` and would otherwise skip them; git does not read `.ignore`.
   Originals and attachments stay hidden, so ruff never lints an emailed `.py` file.

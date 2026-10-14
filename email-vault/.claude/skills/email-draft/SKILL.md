@@ -32,6 +32,7 @@ no other page (thread status, index, people).
   and say that was assumed.
 - Plain prose to paste into Outlook: greeting, short body, sign-off; no wikilinks or markdown.
 - Never invent commitments, amounts or dates: leave `[CONFIRM: …]` where the user must decide.
+- No links, phone numbers or payment details copied from emails (CLAUDE.md hard rule 7).
 
 ## Write
 

@@ -4,13 +4,14 @@ description: Answer questions about the user's email - what someone said or aske
 argument-hint: "[question]"
 allowed-tools:
   - Read
-  - Write
-  - Edit
+  - Write(wiki/answers/**)
+  - Write(wiki/digests/**)
+  - Edit(wiki/**)
   - Glob
   - Grep
-  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/pending.py stats*)
-  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py stats*)
-  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py stats*)
+  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/pending.py stats)
+  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py stats)
+  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py stats)
 ---
 
 # Ask the email wiki

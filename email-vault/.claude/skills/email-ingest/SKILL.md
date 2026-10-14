@@ -4,16 +4,19 @@ description: Convert new Outlook .msg/.eml files in 00-inbox into raw notes, the
 argument-hint: "[max threads this run, default 15 | all]"
 allowed-tools:
   - Read
-  - Write
-  - Edit
+  - Write(wiki/**)
+  - Edit(wiki/**)
   - Glob
   - Grep
-  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/msg_to_md.py*)
-  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/pending.py*)
-  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/msg_to_md.py*)
-  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py*)
-  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/msg_to_md.py*)
-  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py*)
+  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/msg_to_md.py)
+  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/msg_to_md.py *)
+  - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/pending.py *)
+  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/msg_to_md.py)
+  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/msg_to_md.py *)
+  - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/pending.py *)
+  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/msg_to_md.py)
+  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/msg_to_md.py *)
+  - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/pending.py *)
   - Bash(uv run --frozen python .claude/skills/email-ingest/scripts/lint_vault.py --json*)
   - Bash(.venv/Scripts/python.exe .claude/skills/email-ingest/scripts/lint_vault.py --json*)
   - Bash(.venv/bin/python .claude/skills/email-ingest/scripts/lint_vault.py --json*)
