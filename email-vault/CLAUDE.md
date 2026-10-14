@@ -8,7 +8,7 @@ cross-linking and bookkeeping. Co-evolve this file: when a convention changes, u
 ## Owner (fill in)
 
 - Owner: <your name>  — refer to them as "me" on pages, never create a person page for them
-- Owner's addresses: <you@work.com>, <you@home.com>  (also pass to the converter with `--me` or env `EMAIL_VAULT_ME`)
+- Owner's addresses: <you@work.com>, <you@home.com>  (the scripts read this line; `--me` or env `EMAIL_VAULT_ME` add more)
 - Ignore senders: <noreply@…, notifications@…>  (always triage as notification)
 
 ## Layers and folders
@@ -128,8 +128,10 @@ Skipped emails stay fully searchable in `raw/`; they just don't get wiki pages.
 
 ## index.md and log.md
 
-`wiki/index.md` — one line per wiki page under `## Projects`, `## Open threads`,
-`## Waiting on others`, `## Closed threads`, `## People`, `## Orgs`, `## Answers`, `## Digests`:
+`wiki/index.md` — a dashboards line under the title
+(`Dashboards: [[Threads.base|Threads]] · [[People.base|People]] · [[Emails.base|Emails]]`), then one
+line per wiki page under `## Projects`, `## Open threads (I owe)`, `## Waiting on others`,
+`## FYI and closed threads`, `## People`, `## Orgs`, `## Answers`, `## Digests`:
 `- [[Page]] — one-line summary (updated YYYY-MM-DD)`. Read it first when answering.
 
 `wiki/log.md` — append-only, newest at the bottom, one heading per operation:
@@ -137,7 +139,7 @@ Skipped emails stay fully searchable in `raw/`; they just don't get wiki pages.
 Prefixes: `ingest`, `query`, `lint`, `edit`. `grep "^## \[" wiki/log.md | tail -5` shows recent work.
 
 Both are git-ignored, so a fresh clone has neither. Before writing to a missing one, create it:
-index.md with `type: index` frontmatter, `# Email wiki index` and the sections above; log.md with
+index.md with `type: index` frontmatter, `# Email wiki index`, the dashboards line and the sections above; log.md with
 `type: log` frontmatter, `# Log` and the line
 `Append-only. Newest at the bottom. Format: ## [YYYY-MM-DD] ingest|query|lint|edit | title`.
 

@@ -215,6 +215,21 @@ def test_check_setup(vaultlib, vault, schema, owner, expected):
     assert all(fragment in warning for fragment, warning in zip(expected, warnings, strict=True))
 
 
+def test_owner_addresses_read_from_claude_md(vaultlib, vault, monkeypatch):
+    monkeypatch.delenv("EMAIL_VAULT_ME", raising=False)
+    (vault / "CLAUDE.md").write_text(TEMPLATE_OWNER, encoding="utf-8")
+    assert vaultlib.owner_addresses([], vault) == set()
+    schema = "## Owner\n\n- Owner's addresses: Max@Work.com, max@home.org  (also `--me`)\n\n## Next\n<your x>\n"
+    (vault / "CLAUDE.md").write_text(schema, encoding="utf-8")
+    assert vaultlib.owner_addresses(["cli@x.com"], vault) == {"max@work.com", "max@home.org", "cli@x.com"}
+    assert vaultlib.check_setup(vault, {"max@work.com"}) == []  # placeholders outside the Owner section don't count
+
+
+def test_check_setup_tolerates_non_utf8_claude_md(vaultlib, vault):
+    (vault / "CLAUDE.md").write_bytes("## Owner\n\n- Owner: Zoë <your name>\n".encode("cp1252"))
+    assert "<your name>" in vaultlib.check_setup(vault, {"me@x.com"})[0]
+
+
 def test_setup_warnings_reach_lint_and_converter_output(lint_vault, msg_to_md, vault, monkeypatch, capsys):
     monkeypatch.delenv("EMAIL_VAULT_ME", raising=False)
     (vault / "CLAUDE.md").write_text(TEMPLATE_OWNER, encoding="utf-8")

@@ -41,8 +41,8 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
 4. **Replace the placeholders in the Owner section at the top of `CLAUDE.md`** with your name and
    your own email address(es) (and any senders to ignore). Claude relies on this to know which
    mailbox is yours, so it never creates a person page for you and treats mail you sent correctly.
-   Also set `EMAIL_VAULT_ME=you@work.com` in your environment so emails you sent are tagged
-   `direction: sent`; use the same address(es) in both places.
+   The scripts read your addresses from that line too, so emails you sent are tagged
+   `direction: sent`; `--me` or `EMAIL_VAULT_ME` can add more.
 
 ## 2. Daily use
 
@@ -154,8 +154,9 @@ Everything Claude needs is in the vault:
   Obsidian Git or any commit never captures email bodies, attachments, originals or the summaries
   compiled from them. A fresh clone starts with an empty wiki; the first ingest recreates
   `wiki/index.md` and `wiki/log.md`.
-- `.ignore` re-includes `wiki/` and `raw/` (except the binary `raw/msg/`) for search only: ripgrep
-  (Claude Code's Grep) honours `.gitignore` and would otherwise skip them; git does not read `.ignore`.
+- `.ignore` re-includes `wiki/` and the `.md` files under `raw/` for search only: ripgrep (Claude
+  Code's Grep) honours `.gitignore` and would otherwise skip them; git does not read `.ignore`.
+  Originals and attachments stay hidden, so ruff never lints an emailed `.py` file.
 - `pending.py mark` only touches `type: email` notes under `raw/emails/`; `msg_to_md.py` only
   accepts files inside `00-inbox/`.
 - Attachments of executable/script types are stored with a `.blocked` suffix and never parsed;

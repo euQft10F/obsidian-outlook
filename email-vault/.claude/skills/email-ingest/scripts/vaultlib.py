@@ -16,7 +16,10 @@ INBOX_DIRNAME = "00-inbox"
 FAILED_DIRNAME = "_failed"  # inside the inbox: files that would not parse
 EMAIL_SUFFIXES = (".msg", ".eml")  # what the inbox accepts
 CODE_SPAN_RE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
+OWNER_SECTION_RE = re.compile(r"^## Owner\b.*?(?=^## |\Z)", re.S | re.M)
+OWNER_ADDRESSES_LINE_RE = re.compile(r"^- Owner's addresses:(.*)$", re.M)
 OWNER_PLACEHOLDER_RE = re.compile(r"<you(?:r\b|@)[^>\n]*>")  # CLAUDE.md template values: <your name>, <you@work.com>
+EMAIL_ADDRESS_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 # Characters Windows forbids in file names, plus ones that break Obsidian [[links]] and tags.
 BAD_FILENAME_CHARS_RE = re.compile(r'[\\/:*?"<>|#^\[\]\x00-\x1f]+')
 WINDOWS_RESERVED_RE = re.compile(r"^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$", re.I)
@@ -55,21 +58,36 @@ def sanitize_filename(name: str, max_length: int = MAX_FILENAME_LENGTH) -> str:
     return f"_{name}" if WINDOWS_RESERVED_RE.match(name) else name
 
 
-def owner_addresses(cli_values: Iterable[str]) -> set[str]:
-    """The owner's own addresses: `--me` values plus the comma-separated $EMAIL_VAULT_ME, lowercased."""
+def owner_section(vault: Path) -> str:
+    """The `## Owner` section of the vault's CLAUDE.md without code spans ('' if missing)."""
+    try:  # errors="replace": a CLAUDE.md saved as ANSI by Notepad must not crash the scripts
+        text = (vault / "CLAUDE.md").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    match = OWNER_SECTION_RE.search(text)
+    return CODE_SPAN_RE.sub("", match.group(0)) if match else ""
+
+
+def owner_addresses(cli_values: Iterable[str], vault: Path | None = None) -> set[str]:
+    """The owner's own addresses, lowercased: `--me` values, the comma-separated $EMAIL_VAULT_ME
+    and, given a vault, the addresses filled in on CLAUDE.md's "Owner's addresses:" line."""
     from_env = os.environ.get("EMAIL_VAULT_ME", "").split(",")
-    return {address.strip().lower() for address in [*cli_values, *from_env] if address.strip()}
+    from_schema = []
+    if vault:
+        line = OWNER_ADDRESSES_LINE_RE.search(owner_section(vault))
+        from_schema = EMAIL_ADDRESS_RE.findall(OWNER_PLACEHOLDER_RE.sub("", line.group(1))) if line else []
+    return {address.strip().lower() for address in [*cli_values, *from_env, *from_schema] if address.strip()}
 
 
 def check_setup(vault: Path, owner: set[str]) -> list[str]:
     """Warnings about owner configuration the CLAUDE.md template leaves for the user to fill in."""
     warnings = []
-    schema = vault / "CLAUDE.md"
-    placeholders = OWNER_PLACEHOLDER_RE.findall(schema.read_text(encoding="utf-8")) if schema.exists() else []
+    placeholders = OWNER_PLACEHOLDER_RE.findall(owner_section(vault))
     if placeholders:
         warnings.append(f"CLAUDE.md Owner section still has template placeholders: {', '.join(placeholders)}")
     if not owner:
-        warnings.append("No owner address known: pass --me or set env EMAIL_VAULT_ME")
+        warnings.append("No owner address known: fill in CLAUDE.md → Owner's addresses (or pass --me / "
+                        "set env EMAIL_VAULT_ME)")
     return warnings
 
 

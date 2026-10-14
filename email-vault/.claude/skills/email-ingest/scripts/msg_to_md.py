@@ -850,7 +850,7 @@ def main(argv: list[str] | None = None) -> int:
     except RefusedFilesError as refusal:
         print(refusal)
         return 2
-    owner = owner_addresses(args.me)
+    owner = owner_addresses(args.me, vault)
     converter = Converter(vault, owner, dry_run=args.dry_run, keep_originals=args.keep)
     for file in files:
         converter.convert_file(file)

@@ -225,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     vault = find_vault(args.vault)
     today = dt.date.today()
-    owner = owner_addresses(args.me)
+    owner = owner_addresses(args.me, vault)
 
     wiki_dir = vault / "wiki"
     pages = load_wiki_pages(wiki_dir)
