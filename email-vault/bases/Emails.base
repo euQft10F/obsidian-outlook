@@ -2,10 +2,12 @@ filters:
   and:
     - file.inFolder("raw/emails")
     - type == "email"
+formulas:
+  subject_link: file.asLink(if(subject.isEmpty(), file.basename, subject))
 properties:
   note.from:
     displayName: From
-  note.subject:
+  formula.subject_link:
     displayName: Subject
   note.date:
     displayName: Date
@@ -22,7 +24,7 @@ views:
     order:
       - date
       - from
-      - subject
+      - formula.subject_link
       - has_attachments
       - wiki_status
     sort:
@@ -36,7 +38,7 @@ views:
     order:
       - date
       - from
-      - subject
+      - formula.subject_link
     sort:
       - property: date
         direction: ASC
@@ -48,7 +50,7 @@ views:
     order:
       - date
       - from
-      - subject
+      - formula.subject_link
     sort:
       - property: date
         direction: DESC
@@ -60,7 +62,7 @@ views:
     order:
       - date
       - from
-      - subject
+      - formula.subject_link
     sort:
       - property: date
         direction: DESC

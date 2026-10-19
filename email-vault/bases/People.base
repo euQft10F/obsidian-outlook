@@ -18,6 +18,8 @@ views:
       - last_seen
       - formula.days_since
     sort:
+      - property: org
+        direction: ASC
       - property: last_seen
         direction: DESC
   - type: cards

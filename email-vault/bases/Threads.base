@@ -3,7 +3,7 @@ filters:
     - file.inFolder("wiki/threads")
     - type == "thread"
 formulas:
-  actionable: 'status == "open" || status == "waiting"'  # CLAUDE.md: open or waiting are actions; fyi and closed are not
+  actionable: status == "open" || status == "waiting"
 properties:
   note.next_action:
     displayName: Next action
@@ -15,7 +15,7 @@ views:
     filters:
       and:
         - status == "open"
-        - 'owner == "me" || owner.isEmpty()'
+        - owner == "me" || owner.isEmpty()
     order:
       - file.name
       - next_action
@@ -26,12 +26,12 @@ views:
       - property: due
         direction: ASC
   - type: table
-    name: Team owes  # CLAUDE.md → Team mail: open, owned by the team or a teammate
+    name: Team owes
     filters:
       and:
         - status == "open"
         - owner != "me"
-        - '!owner.isEmpty()'
+        - "!owner.isEmpty()"
     order:
       - file.name
       - owner
@@ -72,7 +72,7 @@ views:
       and:
         - formula.actionable
         - due >= today()
-        - 'due <= today() + "7d"'
+        - due <= today() + "7d"
     order:
       - file.name
       - status
@@ -87,7 +87,7 @@ views:
     filters:
       and:
         - status == "waiting"
-        - 'last_activity < today() - "7d"'
+        - last_activity < today() - "7d"
     order:
       - file.name
       - owner
