@@ -60,7 +60,7 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
 | Compile | In Claude Code: `/email-ingest` (15 threads per run; `/email-ingest all` for a backlog); it ends with a lint pass that fixes its own index/citation gaps |
 | Ask | `/email-ask what is waiting on me this week?` · `/email-ask how is Tom connected to the Q3 budget?` |
 | Brief | `/email-today` — overdue, due today/soon, who to nudge (`/email-today 3` for a 3-day nudge threshold) |
-| Draft | `/email-draft Q3 budget agree to the 14 Oct deadline` — writes a reply to `wiki/drafts/` to paste into Outlook; nothing is sent |
+| Draft | `/email-draft Q3 budget agree to the 14 Oct deadline` — writes a reply to `wiki/drafts/` plus a linked `.msg` (classic Outlook) that opens as an unsent reply under the original; nothing is sent |
 | Browse | Obsidian: `bases/Threads.base` (I owe / Team owes / Waiting / Overdue / Due this week / Nudge / By project), `bases/People.base`, graph view, backlinks |
 | Maintain | `/email-lint` weekly (its report starts with a Setup section while the CLAUDE.md Owner section is unfilled) |
 
@@ -110,7 +110,7 @@ wiki/threads/             one page per conversation: summary, timeline, decision
 wiki/people/  wiki/orgs/  correspondents and their organisations
 wiki/projects/            topics spanning several threads
 wiki/answers/  digests/   filed query results
-wiki/drafts/              reply drafts to paste into Outlook (never sent)
+wiki/drafts/              reply drafts (.md) and unsent Outlook replies (.msg); never sent
 wiki/index.md  log.md     catalogue Claude reads first; append-only history
 bases/                    Obsidian Bases dashboards
 tools/                    Outlook exporter (export_outlook_msg.py)
@@ -167,7 +167,8 @@ Everything Claude needs is in the vault:
   - `/email-ingest` converts and marks emails and writes `wiki/`.
   - `/email-lint` writes `wiki/`.
   - `/email-ask` writes answers and digests, and edits `wiki/`.
-  - `/email-draft` writes `wiki/drafts/` and the log.
+  - `/email-draft` writes `wiki/drafts/` and the log, and runs `draft_to_msg.py` to save the .msg
+    next to the draft (Outlook `SaveAs` to a file only; it never calls `Send` or saves to the mailbox).
   - `/email-today` writes nothing.
 
   Skill rules only add permissions, so keeping settings this narrow is what makes the skill

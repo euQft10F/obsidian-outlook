@@ -25,6 +25,7 @@
       "Edit(**/raw/**)",
       "Write(**/raw/**)",
       "Bash(*email-ingest/scripts/*--vault*)",
+      "Bash(*email-draft/scripts/*--vault*)",
       "WebFetch",
       "WebSearch",
       "Bash(curl *)",

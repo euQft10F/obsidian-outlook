@@ -1,0 +1,16 @@
+#!/bin/sh
+# Refuse commits that stage email content: anything under raw/ or 00-inbox/, and anything under
+# wiki/ except the .gitkeep folder markers. Catches `git add -f` and the Obsidian Git plugin.
+# Paths are matched per path component because the git root may be the vault's parent folder.
+# Enable once per clone (from the git root): git config core.hooksPath <vault>/.githooks
+
+blocked=$(git diff --cached --name-only --diff-filter=ACMR |
+  grep -E '(^|/)(raw|00-inbox|wiki)/' | grep -Ev '(^|/)wiki/(.*/)?\.gitkeep$' |
+  grep -Ev '(^|/)(raw|00-inbox)/(.*/)?\.gitkeep$')
+
+if [ -n "$blocked" ]; then
+  echo "pre-commit: refusing to commit email content (raw/, 00-inbox/, wiki/):" >&2
+  echo "$blocked" | sed 's/^/  /' >&2
+  echo "Unstage with: git reset -- <path>. Bypass (only if you are sure): git commit --no-verify" >&2
+  exit 1
+fi

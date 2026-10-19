@@ -126,9 +126,12 @@ threads share a topic, or when the user names one.
 **answer** — `wiki/answers/YYYY-MM-DD <question>.md`: `type: answer`, `asked`, `sources`.
 **digest** — `wiki/digests/YYYY-Www.md`: `type: digest`, `period`.
 **draft** — `wiki/drafts/Draft - <Thread page name>.md` (a distinct name, so `[[Thread]]` links never
-resolve to it): `type: draft`, `thread`, `to`, `subject`, `created`, `sources`.
+resolve to it): `type: draft`, `thread`, `to`, `cc` (optional; both block lists of `Name <address>`),
+`subject`, `created`, `sources` (the newest one is the email being replied to).
 Body is paste-ready reply text plus `## Notes`; never sent, not indexed, overwritten per thread.
-Drafts are unsent proposals, never a source: don't cite or quote them as facts (exclude `wiki/drafts/`
+`draft_to_msg.py` turns it into `Draft - <Thread page name>.msg` next to it: an unsent Outlook reply
+(classic Outlook) for the user to open, check and send.
+Drafts (.md and .msg) are unsent proposals, never a source: don't cite or quote them as facts (exclude `wiki/drafts/`
 when searching the wiki to answer questions).
 
 ## Triage (decide per email before compiling)
@@ -182,12 +185,14 @@ index.md with `type: index` frontmatter, `# Email wiki index`, the dashboards li
 - Python: `uv run --frozen python <script>` from the vault root (the environment is managed by uv: `pyproject.toml`, `uv.lock`, `.venv/`;
   `--frozen` stops uv resolving or installing anything at run time, so run `uv sync` yourself first).
   If uv is unavailable use `.venv/Scripts/python.exe` (Windows) or `.venv/bin/python` (macOS/Linux).
-  Only the three scripts below are pre-approved; do not run other Python or install packages.
-  Settings pre-approve only their read-only calls. Conversion, marking and wiki writes come from the skills
-  (`/email-ingest`, `/email-lint`, …), so the same actions outside a skill ask first. Never pass `--vault`:
-  it is denied, and the scripts always use this vault.
+  Only the four scripts below are pre-approved; do not run other Python or install packages.
+  Settings pre-approve only their read-only calls. Conversion, marking, wiki writes and .msg drafts come from
+  the skills (`/email-ingest`, `/email-lint`, `/email-draft`, …), so the same actions outside a skill ask first.
+  Never pass `--vault`: it is denied, and the scripts always use this vault.
 - Scripts live in `.claude/skills/email-ingest/scripts/`:
-  `msg_to_md.py` (convert inbox) · `pending.py` (list / mark / stats) · `lint_vault.py` (health report).
+  `msg_to_md.py` (convert inbox) · `pending.py` (list / mark / stats) · `lint_vault.py` (health report);
+  and `.claude/skills/email-draft/scripts/draft_to_msg.py` (draft .md → unsent Outlook reply .msg, via
+  classic Outlook COM).
 - Search: Grep on `raw/emails` frontmatter for exact fields (`^from_email: "x@y"`, `^date: 2026-10`),
   Grep on `wiki/` for concepts. If the `qmd` tool or the Obsidian CLI skill is available, use it for
   ranked/semantic search and backlinks.

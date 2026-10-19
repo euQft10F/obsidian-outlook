@@ -4,14 +4,15 @@ from pathlib import Path
 
 import pytest
 
-SCRIPTS_DIR = Path(__file__).resolve().parents[1] / ".claude" / "skills" / "email-ingest" / "scripts"
+SKILLS_DIR = Path(__file__).resolve().parents[1] / ".claude" / "skills"
+SCRIPTS_DIR = SKILLS_DIR / "email-ingest" / "scripts"
 
 
-def load_script(name: str):
+def load_script(name: str, scripts_dir: Path = SCRIPTS_DIR):
     """Import a skill script by file name (the scripts folder is not a package)."""
-    if str(SCRIPTS_DIR) not in sys.path:
+    if str(SCRIPTS_DIR) not in sys.path:  # every script imports the shared vaultlib from here
         sys.path.insert(0, str(SCRIPTS_DIR))
-    spec = importlib.util.spec_from_file_location(name, SCRIPTS_DIR / f"{name}.py")
+    spec = importlib.util.spec_from_file_location(name, scripts_dir / f"{name}.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
     spec.loader.exec_module(module)
@@ -36,6 +37,11 @@ def pending(vaultlib):
 @pytest.fixture(scope="session")
 def lint_vault(vaultlib):
     return load_script("lint_vault")
+
+
+@pytest.fixture(scope="session")
+def draft_to_msg(vaultlib):
+    return load_script("draft_to_msg", SKILLS_DIR / "email-draft" / "scripts")
 
 
 @pytest.fixture
