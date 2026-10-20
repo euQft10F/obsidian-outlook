@@ -7,5 +7,6 @@
     "wiki/drafts/",
     "README.md",
     "CLAUDE.md"
-  ]
+  ],
+  "showUnsupportedFiles": true
 }

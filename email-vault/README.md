@@ -66,7 +66,7 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
 | Ask | `/email-ask what is waiting on me this week?` · `/email-ask how is Tom connected to the Q3 budget?` |
 | Brief | `/email-today` — overdue, due today/soon, who to nudge (`/email-today 3` for a 3-day nudge threshold) |
 | Draft | `/email-draft Q3 budget agree to the 14 Oct deadline` — writes a reply to `wiki/drafts/` plus a linked `.msg` (classic Outlook) that opens as an unsent reply under the original; nothing is sent |
-| Browse | Obsidian: `bases/Threads.base` (I owe / Team owes / Waiting / Overdue / Due this week / Nudge / By project), `bases/People.base`, graph view, backlinks |
+| Browse | Obsidian: `bases/Threads.base` (I owe / Team owes / Waiting / Overdue / Due this week / Nudge / By project), `bases/People.base`, `bases/Emails.base` (its Original column, like a note's `source_file`, opens the archived `.msg` in Outlook; needs "Detect all file extensions", on in the shipped `.obsidian/app.json`), graph view, backlinks |
 | Maintain | `/email-lint` weekly (its report starts with a Setup section while the CLAUDE.md Owner section is unfilled) |
 
 Keep Claude Code and Obsidian side by side, as Karpathy does: Claude edits, Obsidian shows the

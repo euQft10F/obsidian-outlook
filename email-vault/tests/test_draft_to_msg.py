@@ -145,7 +145,12 @@ def test_rejects_paths_outside_drafts(draft_to_msg, draft_vault, path):
         draft_to_msg.resolve_draft_path(draft_vault, path)
 
 
-def test_reply_from_archived_msg(draft_to_msg, draft_vault):
+@pytest.mark.parametrize("linked", [False, True])  # older notes: plain path; newer: wikilink
+def test_reply_from_archived_msg(draft_to_msg, draft_vault, linked):
+    if linked:
+        note = draft_vault / "raw" / "emails" / "2026" / "10" / f"{SOURCE}.md"
+        plain = f'source_file: "raw/msg/2026/10/{SOURCE}.msg"'
+        note.write_text(RAW_NOTE.replace(plain, f'source_file: "[[raw/msg/2026/10/{SOURCE}.msg]]"'), encoding="utf-8")
     namespace = FakeNamespace()
     result = draft_to_msg.build_reply_msg(draft_vault, load(draft_to_msg, draft_vault), FakeApplication(), namespace)
     reply = namespace.original.reply

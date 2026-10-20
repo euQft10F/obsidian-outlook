@@ -561,7 +561,7 @@ def render_note(parsed: ParsedEmail, *, sender: Address, local: dt.datetime, dir
         f"message_id: {yaml_str(parsed.message_id)}",
         f"in_reply_to: {yaml_str(parsed.in_reply_to)}",
         f"source_format: {source_format}",
-        f"source_file: {yaml_str(source_file)}",
+        f"source_file: {yaml_str('[[' + source_file + ']]' if source_file else '')}",  # a link: clickable in Obsidian
         f"sha256: {sha[:16]}",
         "wiki_status: pending",
         "tags:\n  - email",

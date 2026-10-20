@@ -107,7 +107,7 @@ def test_convert_eml_archives_and_detects_duplicates(msg_to_md, vault, monkeypat
                      "direction: received", "has_attachments: true", "wiki_status: pending",
                      "## Message", "Numbers attached.", "## Attachments", "## Quoted history"):
         assert expected in text
-    assert 'source_file: "raw/msg/2026/10/' in text
+    assert re.search(r'source_file: "\[\[raw/msg/2026/10/[^"]+\.eml\]\]"', text)
     assert not eml.exists() and (vault / "raw" / "msg" / "2026" / "10" / f"{note.stem}.eml").exists()
     extracted = list((vault / "raw" / "attachments").rglob("*.extracted.md"))
     assert len(extracted) == 1 and "line one" in extracted[0].read_text(encoding="utf-8")

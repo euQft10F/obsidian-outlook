@@ -178,6 +178,7 @@ def find_in_mailbox(namespace: Any, message_id: str) -> Any | None:
 def open_original(vault: Path, namespace: Any, source_meta: dict[str, Any]) -> tuple[Any | None, str]:
     """The email being replied to as an Outlook item, and how it was found."""
     source_file = str(source_meta.get("source_file") or "")
+    source_file = next(iter(wikilinks(source_file)), source_file)  # newer notes: "[[raw/msg/…]]", older: plain path
     archived = (vault / source_file).resolve() if source_file else None
     if archived and archived.suffix.lower() == ".msg" and archived.is_file() and inside(archived, vault / "raw"):
         with contextlib.suppress(Exception):  # e.g. IRM-protected; try the mailbox

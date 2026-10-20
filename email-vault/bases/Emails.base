@@ -4,11 +4,14 @@ filters:
     - type == "email"
 formulas:
   subject_link: file.asLink(if(subject.isEmpty(), file.basename, subject))
+  original: 'if(source_file.isEmpty(), "", link(source_file.toString().replace("[[", "").replace("]]", ""), "open"))'
 properties:
   note.from:
     displayName: From
   formula.subject_link:
     displayName: Subject
+  formula.original:
+    displayName: Original
   note.date:
     displayName: Date
   note.has_attachments:
@@ -25,6 +28,7 @@ views:
       - date
       - from
       - formula.subject_link
+      - formula.original
       - has_attachments
       - wiki_status
     sort:
@@ -39,6 +43,7 @@ views:
       - date
       - from
       - formula.subject_link
+      - formula.original
     sort:
       - property: date
         direction: ASC
@@ -51,6 +56,7 @@ views:
       - date
       - from
       - formula.subject_link
+      - formula.original
     sort:
       - property: date
         direction: DESC
@@ -63,6 +69,7 @@ views:
       - date
       - from
       - formula.subject_link
+      - formula.original
     sort:
       - property: date
         direction: DESC

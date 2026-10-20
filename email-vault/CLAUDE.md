@@ -61,6 +61,7 @@ Frontmatter fields you can rely on and search with Grep: `type: email`, `subject
 `thread_subject` (prefixes like RE:/FW: stripped), `thread_id`, `date` (local, ISO),
 `from`, `from_email`, `to`, `cc`, `participants` (all addresses), `direction`
 (received/sent), `has_attachments`, `importance`, `message_id`, `in_reply_to`,
+`source_file` (archived original: a `[[raw/msg/…]]` link in newer notes, a plain path in older ones),
 `wiki_status` (pending/compiled/skipped). The body has `## Message` (new text only),
 `## Attachments` (links, plus `extracted` text links) and a folded `## Quoted history`.
 Read the quoted history only when the earlier messages are not in the vault.
