@@ -43,14 +43,19 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
    mailbox is yours, so it never creates a person page for you and treats mail you sent correctly.
    The scripts read your addresses from that line too, so emails you sent are tagged
    `direction: sent`; `--me` or `EMAIL_VAULT_ME` can add more.
-5. *Optional, team mail.* To also track what a team owes on a distribution list such as
-   `dreamteam@coolco.uk`, fill in `Team addresses` and `Team: <name>; members: …` in the Owner section.
-   Do **not** add the list to Owner's addresses: that would file every team request under "I owe".
-   Team threads get `owner: team` until a teammate takes them on (CLAUDE.md → Team mail), and they appear in
-   the **Team owes** view and in the brief's **Team, unassigned** section. A distribution list's copies already
-   arrive in your Inbox, so the exporter needs nothing extra (add `--folder` if an Outlook rule files them
-   elsewhere). Ask the team to keep the list on cc when replying; a reply sent only to the requester
-   never reaches the vault, so that thread stays unassigned. Leave both lines as `none` and nothing changes.
+5. *Optional, team mail.* To also track what a team owes, fill in the Owner section's `Team: <name>` and
+   either or both of:
+   - `Team addresses`: a distribution list such as `dreamteam@coolco.uk`;
+   - `Team members`: teammates as `Tom Reid <tom.reid@coolco.uk>, Zoë Müller <zoe@coolco.uk>`, when the team
+     has no list. Asks to a teammate then count as team mail too, including ones that only cc you.
+
+   Do **not** add the list or teammates to Owner's addresses: that would file every team request under
+   "I owe". Team threads get `owner: team` (asked of the group) or the teammate's name (asked of them, or they
+   took it on); see CLAUDE.md → Team mail. They appear in the **Team owes** view, and unassigned ones in the
+   brief's **Team, unassigned** section. Only mail that reaches your mailbox reaches the vault: list copies
+   arrive in your Inbox (add `--folder` if an Outlook rule files them elsewhere), so ask the team to keep the
+   list, or you, on cc when replying; otherwise that thread stays unassigned. Leave the lines as `none` and
+   nothing changes.
 
 ## 2. Daily use
 

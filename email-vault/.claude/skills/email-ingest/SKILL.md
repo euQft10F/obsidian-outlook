@@ -53,7 +53,7 @@ attachment text when the email refers to it). Then:
    `last_activity`, add every new `thread_id` and source. For team mail, set `owner` per
    CLAUDE.md → Team mail.
 3. **People.** For each human sender/recipient who matters (skip the owner, team addresses and
-   other distribution lists, no-reply addresses): Grep `wiki/people/` for the address; update `last_seen`,
+   other distribution lists, no-reply addresses; teammates do get pages): Grep `wiki/people/` for the address; update `last_seen`,
    `## Threads` and add timeline facts (asks, commitments, roles they state); create the page if
    missing, adding the name as written in the email to `aliases`.
 4. **Org** by email domain (skip public mail domains). **Project**: link to an existing project

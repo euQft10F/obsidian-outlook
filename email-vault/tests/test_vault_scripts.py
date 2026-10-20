@@ -302,6 +302,48 @@ def test_team_addresses_are_optional_and_separate_from_owner(vaultlib, vault, mo
     assert vaultlib.owner_addresses([], vault) == {"max@work.com"}  # team mail is not "me"
 
 
+MEMBERS_LINE_UNFILLED = ("- Team members: none  (optional: teammates as `First Last <address>`, comma-separated; "
+                         "the scripts read this line)\n")
+
+
+def test_team_members_are_optional_and_separate_from_owner_and_aliases(vaultlib, vault, monkeypatch):
+    monkeypatch.delenv("EMAIL_VAULT_ME", raising=False)
+    owner = "## Owner\n\n- Owner: Max\n- Owner's addresses: max@work.com\n"
+    (vault / "CLAUDE.md").write_text(owner, encoding="utf-8")
+    assert vaultlib.team_member_addresses(vault) == set()  # no Team members line at all
+    (vault / "CLAUDE.md").write_text(owner + MEMBERS_LINE_UNFILLED, encoding="utf-8")
+    assert vaultlib.team_member_addresses(vault) == set()  # the code-span example is not an address
+    assert vaultlib.check_setup(vault, vaultlib.owner_addresses([], vault)) == []  # unfilled is not a warning
+    members = "- Team members: Tom Reid <Tom.Reid@coolco.uk>, Zoë Müller <zoe@coolco.uk>\n"
+    (vault / "CLAUDE.md").write_text(owner + members, encoding="utf-8")
+    assert vaultlib.team_member_addresses(vault) == {"tom.reid@coolco.uk", "zoe@coolco.uk"}
+    assert vaultlib.owner_addresses([], vault) == {"max@work.com"}
+    assert vaultlib.team_addresses(vault) == set()
+    assert vaultlib.check_setup(vault, vaultlib.owner_addresses([], vault)) == []
+
+
+@pytest.mark.parametrize("members_line, warning", [
+    ("- Team members: Tom Reid, Zoë Müller\n", "Team members has no addresses"),
+    ("- Team members: Tom Reid <tom@coolco.uk>, Max <MAX@work.com>\n", "Owner address listed as a team member"),
+])
+def test_check_setup_warns_about_team_members(vaultlib, vault, members_line, warning):
+    (vault / "CLAUDE.md").write_text("## Owner\n\n- Owner's addresses: max@work.com\n" + members_line, encoding="utf-8")
+    warnings = vaultlib.check_setup(vault, {"max@work.com"})
+    assert len(warnings) == 1 and warning in warnings[0]
+
+
+def test_lint_still_flags_teammate_without_person_page(lint_vault, vault, monkeypatch, capsys):
+    monkeypatch.delenv("EMAIL_VAULT_ME", raising=False)
+    (vault / "CLAUDE.md").write_text("## Owner\n\n- Owner's addresses: max@work.com\n"
+                                     "- Team members: Tom Reid <tom@coolco.uk>\n", encoding="utf-8")
+    for n in range(3):
+        write_note(vault, f"tom {n}", from_email="tom@coolco.uk", wiki_status="pending")
+    run_cli(lint_vault, monkeypatch, "--vault", str(vault), "--json")
+    issues = json.loads(capsys.readouterr().out)["issues"]
+    frequent = next(items for key, items in issues.items() if key.startswith("Frequent correspondents"))
+    assert frequent == ["tom@coolco.uk (3)"]
+
+
 @pytest.mark.parametrize("team_line, flagged", [
     (TEAM_LINE_UNFILLED, {"priya@acme.co.uk", "dreamteam@coolco.uk"}),
     ("- Team addresses: dreamteam@coolco.uk\n", {"priya@acme.co.uk"}),

@@ -19,6 +19,7 @@ CODE_SPAN_RE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
 OWNER_SECTION_RE = re.compile(r"^## Owner\b.*?(?=^## |\Z)", re.S | re.M)
 OWNER_ADDRESSES_LINE_RE = re.compile(r"^- Owner's addresses:(.*)$", re.M)
 TEAM_ADDRESSES_LINE_RE = re.compile(r"^- Team addresses:(.*)$", re.M)
+TEAM_MEMBERS_LINE_RE = re.compile(r"^- Team members:(.*)$", re.M)
 OWNER_PLACEHOLDER_RE = re.compile(r"<you(?:r\b|@)[^>\n]*>")  # CLAUDE.md template values: <your name>, <you@work.com>
 EMAIL_ADDRESS_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 # Characters Windows forbids in file names, plus ones that break Obsidian [[links]] and tags.
@@ -83,12 +84,22 @@ def team_addresses(vault: Path) -> set[str]:
     return _addresses_on_line(vault, TEAM_ADDRESSES_LINE_RE)
 
 
+def team_member_addresses(vault: Path) -> set[str]:
+    """Teammates' own addresses, lowercased, from CLAUDE.md's "Team members:" line (`First Last <address>`).
+    Separate from owner_addresses and team_addresses: teammates are people, so they get person pages
+    and still count as correspondents."""
+    return _addresses_on_line(vault, TEAM_MEMBERS_LINE_RE)
+
+
+def _line_value(vault: Path, line_re: re.Pattern[str]) -> str:
+    """One line of the Owner section after its label, without template placeholders and code-span examples."""
+    line = line_re.search(owner_section(vault))
+    return OWNER_PLACEHOLDER_RE.sub("", line.group(1)) if line else ""
+
+
 def _addresses_on_line(vault: Path, line_re: re.Pattern[str]) -> set[str]:
     """Addresses on one line of the Owner section, ignoring template placeholders and code-span examples."""
-    line = line_re.search(owner_section(vault))
-    if not line:
-        return set()
-    return {address.lower() for address in EMAIL_ADDRESS_RE.findall(OWNER_PLACEHOLDER_RE.sub("", line.group(1)))}
+    return {address.lower() for address in EMAIL_ADDRESS_RE.findall(_line_value(vault, line_re))}
 
 
 def check_setup(vault: Path, owner: set[str]) -> list[str]:
@@ -100,6 +111,14 @@ def check_setup(vault: Path, owner: set[str]) -> list[str]:
     if not owner:
         warnings.append("No owner address known: fill in CLAUDE.md → Owner's addresses (or pass --me / "
                         "set env EMAIL_VAULT_ME)")
+    members = _line_value(vault, TEAM_MEMBERS_LINE_RE)
+    member_addresses = team_member_addresses(vault)
+    names = re.sub(r"\(.*?\)", "", members).strip(" ,;")  # the template's "(optional: …)" note is not a name
+    if names and names.lower() != "none" and not member_addresses:
+        warnings.append("CLAUDE.md Team members has no addresses: write each teammate as First Last <address>")
+    if owner & member_addresses:
+        warnings.append(f"Owner address listed as a team member: {', '.join(sorted(owner & member_addresses))} "
+                        "(your own asks would be filed under Team owes)")
     return warnings
 
 
