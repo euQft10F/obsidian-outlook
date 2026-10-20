@@ -85,10 +85,12 @@ uv run python tools/export_outlook_msg.py --selection                    # what'
 uv run python tools/export_outlook_msg.py --days 7                       # Inbox, last 7 days
 uv run python tools/export_outlook_msg.py --days 30 --folder "Inbox/Projects/Q3" --folder "Sent Items"
 uv run python tools/export_outlook_msg.py --since 2026-09-01 --folder "Shared Mailbox/Inbox"
+uv run python tools/export_outlook_msg.py --days 7 --folder Inbox --folder "Inbox/*"   # Inbox + all subfolders
 uv run python tools/export_outlook_msg.py --days 1 --convert             # export, then convert to raw/
 ```
 Running it with no arguments just prints the help; you must choose `--selection`, `--days`,
-`--since` or `--list-folders`. Other flags: `--unread-only`, `--limit N` (newly saved emails per
+`--since` or `--list-folders`. A `--folder` path ending in `/*` (or `\*`) stands for every
+subfolder below it, at any depth, but not the folder itself; quote it so the shell doesn't expand it. Other flags: `--unread-only`, `--limit N` (newly saved emails per
 folder), `--dry-run`, `--force` (re-export a selection), `--output-dir DIR` (default
 `00-inbox/`) and `--state-file FILE` (default `raw/.outlook-export-state.json`).
 Exporting Sent Items too gives Claude your side of each thread.
@@ -139,7 +141,13 @@ Core (built in, enable in Settings → Core plugins):
 
 Community (Settings → Community plugins → Browse):
 - **Omnisearch** + **Text Extractor** — ranked, typo-tolerant full-text search for you, including
-  text inside PDFs and images in `raw/attachments`.
+  text inside images in `raw/attachments` (OCR). No code changes needed; recommended settings:
+  - Leave PDF and Office indexing off: the converter already writes `*.extracted.md` for those,
+    so indexing them again shows every document twice.
+  - Turn on **Respect Obsidian's excluded files** (`app.json` excludes `wiki/drafts/`, index and log).
+  - Leave the **HTTP server** off: Claude doesn't use it (it searches with Grep, or qmd), and it would
+    expose email search to anything that can reach the port.
+  - Raw bodies are defanged, so search `&lt;` rather than `<`.
 - **Smart Connections** — local embeddings; shows semantically related notes in a side pane.
   Good for spotting connections you didn't link ("other emails like this one").
 - **Obsidian Git** — commits the vault on a timer, so every Claude edit is diffable and reversible.

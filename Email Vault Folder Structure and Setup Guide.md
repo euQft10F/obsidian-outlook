@@ -88,7 +88,7 @@ Setup takes about 15 minutes once; after that the daily loop is export, `/email-
    - Files & links: turn on **Automatically update internal links**.
    - General: enable the **Command line interface** (needs Obsidian 1.12 or later).
 4. **Optional community plugins:**
-   - **Omnisearch** and **Text Extractor** for full-text search, including inside PDFs.
+   - **Omnisearch** and **Text Extractor** for full-text search (see the vault README for recommended settings).
    - **Smart Connections** for related notes.
    - **Obsidian Git** so every Claude edit can be undone.
 5. **Tell the vault who you are:**

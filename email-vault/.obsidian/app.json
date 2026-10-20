@@ -4,6 +4,7 @@
     "index",
     "tests/",
     "tools/",
+    "wiki/drafts/",
     "README.md",
     "CLAUDE.md"
   ]

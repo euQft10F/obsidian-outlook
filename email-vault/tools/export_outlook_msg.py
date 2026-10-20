@@ -9,6 +9,7 @@ unless you pick an action: --selection, --days, --since or --list-folders.
     uv run python tools/export_outlook_msg.py --days 7             # Inbox, last 7 days
     uv run python tools/export_outlook_msg.py --days 30 --folder "Inbox/Projects/Q3" --folder "Sent Items"
     uv run python tools/export_outlook_msg.py --since 2026-09-01 --folder "Other Mailbox/Inbox"
+    uv run python tools/export_outlook_msg.py --days 7 --folder Inbox --folder "Inbox/*"   # Inbox + all subfolders
     uv run python tools/export_outlook_msg.py --days 7 --output-dir D:/scratch/msgs --state-file D:/scratch/state.json
     uv run python tools/export_outlook_msg.py --days 1 --convert   # export, then run msg_to_md.py
     uv run python tools/export_outlook_msg.py --list-folders       # show folder paths you can use
@@ -100,6 +101,22 @@ def resolve_folder(namespace: Any, path: str) -> Any:
             raise ExportError(f"no subfolder '{name}' under '{folder.Name}'")
         folder = child
     return folder
+
+
+def iter_subfolders(folder: Any, path: str) -> Any:
+    """Yield (path, folder) for every folder below `folder`, depth first."""
+    for child in folder.Folders:
+        child_path = f"{path}/{child.Name}"
+        yield child_path, child
+        yield from iter_subfolders(child, child_path)
+
+
+def resolve_folders(namespace: Any, path: str) -> list[tuple[str, Any]]:
+    """Resolve a --folder path to (path, folder) pairs; a trailing '/*' means every subfolder, at any depth."""
+    parent_path, wildcards = re.subn(r"\s*[\\/]\s*\*\s*$", "", path.strip())
+    if not wildcards:
+        return [(path, resolve_folder(namespace, path))]
+    return list(iter_subfolders(resolve_folder(namespace, parent_path), parent_path))
 
 
 def print_folder_tree(folder: Any, depth: int = 0, max_depth: int = 3) -> None:
@@ -239,7 +256,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--folder", action="append", dest="folders", metavar="PATH",
                         help="with --days/--since: folder to export, e.g. 'Inbox/Projects' or "
-                             "'Shared Mailbox/Inbox'; repeatable (default: Inbox)")
+                             "'Shared Mailbox/Inbox'; a trailing '/*' ('Inbox/*') exports every subfolder "
+                             "below it at any depth, not the folder itself; repeatable (default: Inbox)")
     parser.add_argument("--unread-only", action="store_true", help="with --days/--since: only unread emails")
     parser.add_argument("--limit", type=int, metavar="N",
                         help="with --days/--since: stop after N newly saved emails per folder")
@@ -323,15 +341,23 @@ def run(args: argparse.Namespace) -> int:
                 exporter.export_item(item, force=args.force)
         else:
             since = args.since or dt.datetime.now() - dt.timedelta(days=args.days)
-            for path in args.folders or ["Inbox"]:
+            seen_folders: set[str] = set()  # 'Inbox' plus 'Inbox/*' or two spellings: export each folder once
+            for requested_path in args.folders or ["Inbox"]:
                 try:
-                    folder = resolve_folder(namespace, path)
+                    folders = resolve_folders(namespace, requested_path)
                 except ExportError as error:
                     print(f"! {error}", file=sys.stderr)
                     exporter.failed += 1
                     continue
-                print(f"{path}: since {since:%Y-%m-%d %H:%M}")
-                exporter.export_folder(folder, since, limit=args.limit, unread_only=args.unread_only)
+                if not folders:
+                    print(f"{requested_path}: no subfolders")
+                for path, folder in folders:
+                    folder_id = getattr(folder, "EntryID", None) or path.lower()
+                    if folder_id in seen_folders:
+                        continue
+                    seen_folders.add(folder_id)
+                    print(f"{path}: since {since:%Y-%m-%d %H:%M}")
+                    exporter.export_folder(folder, since, limit=args.limit, unread_only=args.unread_only)
     finally:
         if not args.dry_run:  # also runs after Ctrl-C, so files already saved stay remembered
             save_state(state_path, exported)

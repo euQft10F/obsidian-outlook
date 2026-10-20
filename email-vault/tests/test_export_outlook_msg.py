@@ -119,6 +119,27 @@ def test_resolve_folder():
         exporter.resolve_folder(namespace, "Nope")
 
 
+def test_resolve_folders_wildcard_expands_all_subfolders():
+    inbox = FakeFolder("Inbox", subfolders=[FakeFolder("A", subfolders=[FakeFolder("A1")]), FakeFolder("B")])
+    namespace = SimpleNamespace(Folders=[], GetDefaultFolder=lambda folder_id: inbox)
+    assert [path for path, _ in exporter.resolve_folders(namespace, "Inbox\\*")] == [
+        "Inbox/A", "Inbox/A/A1", "Inbox/B"]
+    assert [path for path, _ in exporter.resolve_folders(namespace, "Inbox/A / *")] == ["Inbox/A/A1"]
+    assert exporter.resolve_folders(namespace, "Inbox/B/*") == []
+    assert exporter.resolve_folders(namespace, "Inbox") == [("Inbox", inbox)]
+
+
+def test_folder_given_twice_is_exported_once(tmp_path, monkeypatch, capsys):
+    inbox = FakeFolder("Inbox", [FakeMail("a")], subfolders=[FakeFolder("Q3", [FakeMail("b")])])
+    namespace = SimpleNamespace(Folders=[], GetDefaultFolder=lambda folder_id: inbox)
+    monkeypatch.setattr(exporter, "connect_to_outlook", lambda: (None, namespace))
+    argv = ["--days", "36500", "--dry-run", "--vault", str(tmp_path),
+            "--folder", "Inbox", "--folder", "Inbox/*", "--folder", "inbox/Q3"]
+    assert exporter.main(argv) == 0
+    out = capsys.readouterr().out
+    assert out.count("would save:") == 2 and "inbox/Q3:" not in out
+
+
 def test_no_arguments_prints_help(capsys):
     assert exporter.main([]) == 0
     assert "--output-dir" in capsys.readouterr().out
