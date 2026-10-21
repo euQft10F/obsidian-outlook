@@ -20,6 +20,9 @@ OWNER_SECTION_RE = re.compile(r"^## Owner\b.*?(?=^## |\Z)", re.S | re.M)
 OWNER_ADDRESSES_LINE_RE = re.compile(r"^- Owner's addresses:(.*)$", re.M)
 TEAM_ADDRESSES_LINE_RE = re.compile(r"^- Team addresses:(.*)$", re.M)
 TEAM_MEMBERS_LINE_RE = re.compile(r"^- Team members:(.*)$", re.M)
+SETTINGS_SECTION_RE = re.compile(r"^## Converter settings\b.*?(?=^## |\Z)", re.S | re.M)
+ATTACHMENTS_LINE_RE = re.compile(r"^- Attachments:[ \t]*(\S*)", re.M)
+ATTACHMENT_MODES = ("save", "skip")  # save: files + extracted text in raw/attachments; skip: names listed only
 OWNER_PLACEHOLDER_RE = re.compile(r"<you(?:r\b|@)[^>\n]*>")  # CLAUDE.md template values: <your name>, <you@work.com>
 EMAIL_ADDRESS_RE = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 # Characters Windows forbids in file names, plus ones that break Obsidian [[links]] and tags.
@@ -60,14 +63,31 @@ def sanitize_filename(name: str, max_length: int = MAX_FILENAME_LENGTH) -> str:
     return f"_{name}" if WINDOWS_RESERVED_RE.match(name) else name
 
 
-def owner_section(vault: Path) -> str:
-    """The `## Owner` section of the vault's CLAUDE.md without code spans ('' if missing)."""
+def _schema_section(vault: Path, section_re: re.Pattern[str]) -> str:
+    """One `## …` section of the vault's CLAUDE.md without code spans ('' if missing)."""
     try:  # errors="replace": a CLAUDE.md saved as ANSI by Notepad must not crash the scripts
         text = (vault / "CLAUDE.md").read_text(encoding="utf-8", errors="replace")
     except OSError:
         return ""
-    match = OWNER_SECTION_RE.search(text)
+    match = section_re.search(text)
     return CODE_SPAN_RE.sub("", match.group(0)) if match else ""
+
+
+def owner_section(vault: Path) -> str:
+    """The `## Owner` section of the vault's CLAUDE.md without code spans ('' if missing)."""
+    return _schema_section(vault, OWNER_SECTION_RE)
+
+
+def _attachments_value(vault: Path) -> str | None:
+    """The raw value of CLAUDE.md's "Converter settings → Attachments:" line, lowercased (None if no line)."""
+    line = ATTACHMENTS_LINE_RE.search(_schema_section(vault, SETTINGS_SECTION_RE))
+    return line.group(1).lower() if line else None
+
+
+def attachments_mode(vault: Path) -> str:
+    """"save" or "skip" from CLAUDE.md → Converter settings; "save" when missing or unrecognised."""
+    value = _attachments_value(vault)
+    return value if value in ATTACHMENT_MODES else "save"
 
 
 def owner_addresses(cli_values: Iterable[str], vault: Path | None = None) -> set[str]:
@@ -119,6 +139,10 @@ def check_setup(vault: Path, owner: set[str]) -> list[str]:
     if owner & member_addresses:
         warnings.append(f"Owner address listed as a team member: {', '.join(sorted(owner & member_addresses))} "
                         "(your own asks would be filed under Team owes)")
+    attachments = _attachments_value(vault)
+    if attachments is not None and attachments not in ATTACHMENT_MODES:
+        warnings.append(f"CLAUDE.md Converter settings: Attachments must be save or skip (got '{attachments}'); "
+                        "saving attachments")
     return warnings
 
 

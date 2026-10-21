@@ -31,7 +31,9 @@ Scripts: `S=.claude/skills/email-ingest/scripts`. Use the vault's Python (see CL
 
 ## 1. Convert the inbox (deterministic)
 
-Run `<python> $S/msg_to_md.py`. Report converted / duplicate / failed counts in one line.
+Run `<python> $S/msg_to_md.py`. Whether attachments are stored comes from CLAUDE.md → Converter settings;
+only when the user asks for this run to be without (or with) attachments, add `--attachments skip` (or `save`).
+Report converted / duplicate / failed counts in one line, plus `Attachments: not stored` if the script printed it.
 If files failed, name them and point to `00-inbox/_failed/*.error.txt`; carry on with the rest.
 Relay any `Setup warning:` lines (owner not configured) in the run report and continue.
 
@@ -44,7 +46,8 @@ same conversation (e.g. a forward) go on one thread page.
 ## 3. Compile each thread group
 
 For each group, read the emails' frontmatter and `## Message` sections (and `*.extracted.md`
-attachment text when the email refers to it). Then:
+attachment text when the email refers to it; an attachment marked "not stored" has none, so note
+"attachment not stored, see original" on the thread page instead of looking for it). Then:
 
 1. **Triage** (CLAUDE.md → Triage). Notifications/newsletters: collect for step 4 as skipped.
 2. **Thread page.** Grep `wiki/threads/` for the `thread_id`, then for the `thread_subject`.

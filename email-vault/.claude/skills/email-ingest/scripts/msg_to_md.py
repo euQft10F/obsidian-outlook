@@ -8,6 +8,8 @@ are detected and skipped.
     python msg_to_md.py --dry-run       # show what would happen
     python msg_to_md.py --keep          # leave originals in the inbox (default: archive to raw/msg/)
     python msg_to_md.py --me me@work.com --me me@home.com   # mark emails you sent
+    python msg_to_md.py --attachments skip   # list attachments on the note, don't store them
+                                             # (default: CLAUDE.md → Converter settings, else save)
 
 Output per email:
     raw/emails/YYYY/MM/<YYYY-MM-DD HHMM> <Sender> - <Subject>.md
@@ -36,9 +38,11 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from vaultlib import (
+    ATTACHMENT_MODES,
     EMAIL_SUFFIXES,
     FAILED_DIRNAME,
     INBOX_DIRNAME,
+    attachments_mode,
     check_setup,
     find_vault,
     owner_addresses,
@@ -642,10 +646,12 @@ class ConversionIndex:
 
 
 class Converter:
-    def __init__(self, vault: Path, own_addresses: set[str], *, dry_run: bool, keep_originals: bool):
+    def __init__(self, vault: Path, own_addresses: set[str], *, dry_run: bool, keep_originals: bool,
+                 save_attachments: bool = True):
         self.vault = vault
         self.dry_run = dry_run
         self.keep_originals = keep_originals
+        self.save_attachments = save_attachments
         self.own_addresses = own_addresses
         self.index = ConversionIndex(vault / INDEX_FILE)
         self.results: list[ConversionResult] = []
@@ -751,7 +757,8 @@ class Converter:
         self.index.add(self._relative(note), message_id=parsed.message_id, sha=None if embedded_in else sha)
 
     def _save_attachments(self, attachments: list[Attachment], directory: Path, email_link: str) -> list[str]:
-        """Write attachment files (+ extracted text); returns one markdown bullet per attachment."""
+        """Write attachment files (+ extracted text); returns one markdown bullet per attachment.
+        With attachments skipped, nothing is written and the bullets name the files without linking them."""
         lines = []
         for attachment in attachments:
             is_signature_logo = (attachment.inline and Path(attachment.filename).suffix.lower() in IMAGE_EXT
@@ -765,6 +772,9 @@ class Converter:
                 filename += ".blocked"
             elif Path(filename).suffix.lower() in NOTE_LIKE_EXT:
                 filename += ".txt"
+            if not self.save_attachments:  # sanitize_filename removed []<>#|, so the plain name can't link or embed
+                lines.append(f"- {filename} ({len(attachment.data) / 1024:.0f} KB) · not stored (attachments: skip)")
+                continue
             target = self._unique(directory / filename)
             line = f"- [[{self._relative(target)}|{filename}]] ({len(attachment.data) / 1024:.0f} KB)"
             if blocked:
@@ -830,6 +840,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--vault", help="vault root (default: $CLAUDE_PROJECT_DIR or nearest folder with CLAUDE.md)")
     parser.add_argument("--me", action="append", default=[], help="your own address(es); also env EMAIL_VAULT_ME")
     parser.add_argument("--keep", action="store_true", help="leave originals in the inbox instead of archiving")
+    parser.add_argument("--attachments", choices=ATTACHMENT_MODES,
+                        help="store attachment files + extracted text, or only list them on the note "
+                             "(default: CLAUDE.md → Converter settings, else save)")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--json", action="store_true", help="print results as JSON")
     return parser
@@ -849,17 +862,19 @@ def select_files(inbox: Path, explicit_files: list[str]) -> list[Path]:
 
 
 def print_summary(vault: Path, results: list[ConversionResult], setup: list[str], *,
-                  dry_run: bool, as_json: bool) -> None:
+                  dry_run: bool, as_json: bool, attachments: str = "save") -> None:
     counts: dict[str, int] = {}
     for result in results:
         counts[result.status] = counts.get(result.status, 0) + 1
     if as_json:
-        payload = {"vault": str(vault), "counts": counts, "setup": setup,
+        payload = {"vault": str(vault), "counts": counts, "attachments": attachments, "setup": setup,
                    "results": [result.to_dict() for result in results]}
         print(json.dumps(payload, ensure_ascii=False, indent=1))
         return
     print(f"Vault: {vault}{'  (dry run)' if dry_run else ''}")
     print("Summary: " + (", ".join(f"{status} {count}" for status, count in counts.items()) or "inbox empty"))
+    if attachments == "skip":
+        print("Attachments: not stored (skip)")
     for warning in setup:
         print(f"Setup warning: {warning}")
     for result in results:
@@ -876,13 +891,16 @@ def main(argv: list[str] | None = None) -> int:
         print(refusal)
         return 2
     owner = owner_addresses(args.me, vault)
-    converter = Converter(vault, owner, dry_run=args.dry_run, keep_originals=args.keep)
+    attachments = args.attachments or attachments_mode(vault)
+    converter = Converter(vault, owner, dry_run=args.dry_run, keep_originals=args.keep,
+                          save_attachments=attachments == "save")
     try:
         for file in files:
             converter.convert_file(file)
     finally:  # keep the index of what was converted even if the run is interrupted
         converter.save_index()
-    print_summary(vault, converter.results, check_setup(vault, owner), dry_run=args.dry_run, as_json=args.json)
+    print_summary(vault, converter.results, check_setup(vault, owner), dry_run=args.dry_run, as_json=args.json,
+                  attachments=attachments)
     return 1 if any(result.status == "failed" for result in converter.results) else 0
 
 

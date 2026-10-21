@@ -56,6 +56,11 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
    arrive in your Inbox (add `--folder` if an Outlook rule files them elsewhere), so ask the team to keep the
    list, or you, on cc when replying; otherwise that thread stays unassigned. Leave the lines as `none` and
    nothing changes.
+6. *Optional, no attachments.* Set `Attachments: skip` under CLAUDE.md → Converter settings to keep attachment
+   files and their extracted text out of the vault: raw notes then only list each attachment's name and size,
+   and the file stays inside the archived original in `raw/msg/`. Emails attached to an email are still
+   converted. `msg_to_md.py --attachments save|skip` overrides it for one run (or ask `/email-ingest` to
+   ingest without attachments).
 
 ## 2. Daily use
 
@@ -111,7 +116,8 @@ git-ignored (they may name correspondents).
 ```
 00-inbox/                 drop .msg/.eml here; _failed/ holds files that wouldn't parse
 raw/emails/YYYY/MM/       one note per email (frontmatter + new text + folded quoted history)
-raw/attachments/YYYY/MM/  attachment files + .extracted.md text (pdf, docx, xlsx, txt, csv)
+raw/attachments/YYYY/MM/  attachment files + .extracted.md text (pdf, docx, xlsx, txt, csv);
+                          empty with "Attachments: skip" in CLAUDE.md or msg_to_md.py --attachments skip
 raw/msg/YYYY/MM/          archived originals, same name as the note
 wiki/threads/             one page per conversation: summary, timeline, decisions, open items, status
 wiki/people/  wiki/orgs/  correspondents and their organisations

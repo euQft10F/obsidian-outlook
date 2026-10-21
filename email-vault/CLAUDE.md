@@ -14,13 +14,18 @@ cross-linking and bookkeeping. Co-evolve this file: when a convention changes, u
 - Team: none  (optional: team name, written on pages as "the team")
 - Team members: none  (optional: teammates as `First Last <address>`, comma-separated; the scripts read this line)
 
+## Converter settings
+
+- Attachments: save  (save | skip: skip lists attachment names and sizes on the raw note but stores no files
+  or extracted text; attached emails still become notes. `msg_to_md.py --attachments` overrides; the scripts read this line)
+
 ## Layers and folders
 
 | Path | Layer | Who writes |
 |---|---|---|
 | `00-inbox/` | drop zone for `.msg`/`.eml` saved from Outlook | the user |
 | `raw/emails/YYYY/MM/` | one markdown note per email, made by the converter | script only |
-| `raw/attachments/YYYY/MM/<email>/` | attachment files + `*.extracted.md` text | script only |
+| `raw/attachments/YYYY/MM/<email>/` | attachment files + `*.extracted.md` text (none with Attachments: skip) | script only |
 | `raw/msg/YYYY/MM/` | archived original `.msg`/`.eml` | script only |
 | `wiki/threads/` | one page per conversation | Claude |
 | `wiki/people/`, `wiki/orgs/` | correspondents and their organisations | Claude |
@@ -65,6 +70,8 @@ Frontmatter fields you can rely on and search with Grep: `type: email`, `subject
 `wiki_status` (pending/compiled/skipped). The body has `## Message` (new text only),
 `## Attachments` (links, plus `extracted` text links) and a folded `## Quoted history`.
 Read the quoted history only when the earlier messages are not in the vault.
+An attachment bullet ending "not stored (attachments: skip)" has no file or extracted text in the vault;
+it exists only inside the original (`source_file`).
 Body and extracted text are defanged: `&lt;` stands for `<` and `!\[` for `![`; read them as such and don't undo
 it on wiki pages. Attachments named `*.md`/`.canvas`/`.base` are stored with `.txt` appended.
 

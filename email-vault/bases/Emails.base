@@ -4,7 +4,7 @@ filters:
     - type == "email"
 formulas:
   subject_link: file.asLink(if(subject.isEmpty(), file.basename, subject))
-  original: 'if(source_file.isEmpty(), "", link(source_file.toString().replace("[[", "").replace("]]", ""), "open"))'
+  original: if(source_file.isEmpty(), "", link(source_file.toString().replace("[[", "").replace("]]", ""), "open"))
 properties:
   note.from:
     displayName: From

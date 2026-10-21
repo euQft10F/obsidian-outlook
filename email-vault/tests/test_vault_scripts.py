@@ -14,14 +14,16 @@ def run_cli(module, monkeypatch, *argv) -> int:
 
 def write_eml(path, *, subject="Re: Q3 budget", sender="Shah, Priya <priya@acme.co.uk>",
               body="Numbers attached.\n\nOn Mon, 5 Oct 2026, Tom wrote:\n> old text\n> more\n> more\n",
-              attachments=()):
+              attachments=(), message_id="<root-1@acme.co.uk>", embedded=None):
     message = EmailMessage()
     message["Subject"], message["From"] = subject, sender
     message["To"], message["Date"] = "me@work.com", "Mon, 05 Oct 2026 08:14:00 +0000"
-    message["Message-ID"] = "<root-1@acme.co.uk>"
+    message["Message-ID"] = message_id
     message.set_content(body)
     for name, data in attachments:
         message.add_attachment(data, maintype="application", subtype="octet-stream", filename=name)
+    if embedded is not None:  # an email forwarded as an attachment (message/rfc822)
+        message.add_attachment(embedded)
     path.write_bytes(message.as_bytes())
     return path
 
@@ -177,6 +179,49 @@ def test_one_failing_email_does_not_abort_the_batch(msg_to_md, vault, monkeypatc
     assert (vault / "00-inbox" / "_failed" / "a.eml").exists()
     assert [p.name for p in (vault / "raw" / "emails").rglob("*.md")][0].endswith("fine.md")
     assert (vault / "raw" / ".email-index.json").exists()
+
+
+def stored_attachments(vault):
+    return sorted(p.name for p in (vault / "raw" / "attachments").rglob("*") if p.is_file())
+
+
+def test_attachments_skip_lists_but_does_not_store(msg_to_md, vault, monkeypatch, capsys):
+    write_eml(vault / "00-inbox" / "a.eml", attachments=[("budget.txt", b"line one"), ("run.exe", b"MZ")])
+    assert run_cli(msg_to_md, monkeypatch, "--vault", str(vault), "--attachments", "skip") == 0
+    assert stored_attachments(vault) == []
+    text = next((vault / "raw" / "emails").rglob("*.md")).read_text(encoding="utf-8")
+    assert "has_attachments: true" in text and "[[raw/attachments" not in text
+    assert "- budget.txt (0 KB) · not stored (attachments: skip)" in text
+    assert "- run.exe.blocked (0 KB) · not stored (attachments: skip)" in text
+    assert "Attachments: not stored (skip)" in capsys.readouterr().out
+
+
+def test_attachments_mode_read_from_claude_md_and_cli_overrides(msg_to_md, vault, monkeypatch):
+    (vault / "CLAUDE.md").write_text("## Converter settings\n\n- Attachments: Skip  (save | skip: `--attachments`)\n",
+                                     encoding="utf-8")
+    write_eml(vault / "00-inbox" / "a.eml", attachments=[("budget.txt", b"line one")])
+    run_cli(msg_to_md, monkeypatch, "--vault", str(vault))
+    assert stored_attachments(vault) == []
+    write_eml(vault / "00-inbox" / "b.eml", subject="Other", message_id="<other@acme.co.uk>",
+              attachments=[("budget.txt", b"line one")])
+    run_cli(msg_to_md, monkeypatch, "--vault", str(vault), "--attachments", "save")
+    assert stored_attachments(vault) == ["budget.txt", "budget.txt.extracted.md"]
+
+
+def test_attachments_skip_still_converts_embedded_email(msg_to_md, vault, monkeypatch):
+    inner = EmailMessage()
+    inner["Subject"], inner["From"], inner["Message-ID"] = "Rate card", "Tom Reid <tom@x.com>", "<inner@x.com>"
+    inner["Date"] = "Fri, 02 Oct 2026 10:00:00 +0000"
+    inner.set_content("See the card.")
+    inner.add_attachment(b"rates", maintype="application", subtype="octet-stream", filename="rates.csv")
+    write_eml(vault / "00-inbox" / "a.eml", subject="FW: Rate card", embedded=inner)
+    run_cli(msg_to_md, monkeypatch, "--vault", str(vault), "--attachments", "skip")
+    notes = {p.stem: p.read_text(encoding="utf-8") for p in (vault / "raw" / "emails").rglob("*.md")}
+    assert len(notes) == 2 and stored_attachments(vault) == []
+    parent = next(text for stem, text in notes.items() if "Shah" in stem)
+    child = next(text for stem, text in notes.items() if "Tom Reid" in stem)
+    assert "- Embedded email: [[raw/emails/" in parent
+    assert "rates.csv (0 KB) · not stored" in child
 
 
 def test_files_outside_inbox_are_refused(msg_to_md, vault, monkeypatch, tmp_path_factory):
@@ -358,6 +403,20 @@ def test_lint_never_flags_team_alias_as_correspondent(lint_vault, vault, monkeyp
     issues = json.loads(capsys.readouterr().out)["issues"]
     frequent = next(items for key, items in issues.items() if key.startswith("Frequent correspondents"))
     assert {line.split(" ")[0] for line in frequent} == flagged
+
+
+@pytest.mark.parametrize("settings, mode, warned", [
+    ("", "save", False),  # no Converter settings section
+    ("## Converter settings\n\n- Attachments: skip\n", "skip", False),
+    ("## Converter settings\n\n- Attachments: save  (save | skip)\n", "save", False),
+    ("## Converter settings\n\n- Attachments: maybe\n", "save", True),
+    ("## Other\n\n- Attachments: skip\n", "save", False),  # only the Converter settings section counts
+])
+def test_attachments_mode_from_claude_md(vaultlib, vault, settings, mode, warned):
+    (vault / "CLAUDE.md").write_text("## Owner\n\n- Owner's addresses: max@work.com\n\n" + settings, encoding="utf-8")
+    assert vaultlib.attachments_mode(vault) == mode
+    warnings = vaultlib.check_setup(vault, {"max@work.com"})
+    assert any("Attachments must be save or skip (got 'maybe')" in w for w in warnings) == warned
 
 
 def test_check_setup_tolerates_non_utf8_claude_md(vaultlib, vault):
