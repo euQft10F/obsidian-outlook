@@ -5,6 +5,7 @@ filters:
 formulas:
   subject_link: file.asLink(if(subject.isEmpty(), file.basename, subject))
   original: if(source_file.isEmpty(), "", link(source_file.toString().replace("[[", "").replace("]]", ""), "open"))
+  needs_attention: if(wiki_thread.isEmpty(), false, wiki_thread.asFile().properties.status == "open")
 properties:
   note.from:
     displayName: From
@@ -14,8 +15,8 @@ properties:
     displayName: Original
   note.date:
     displayName: Date
-  note.has_attachments:
-    displayName: Att.
+  formula.needs_attention:
+    displayName: Act
   note.wiki_status:
     displayName: Wiki
 views:
@@ -29,7 +30,7 @@ views:
       - from
       - formula.subject_link
       - formula.original
-      - has_attachments
+      - formula.needs_attention
       - wiki_status
     sort:
       - property: date
@@ -61,10 +62,10 @@ views:
       - property: date
         direction: DESC
   - type: table
-    name: With attachments
+    name: Needs attention
     filters:
       and:
-        - has_attachments == true
+        - formula.needs_attention == true
     order:
       - date
       - from

@@ -85,6 +85,10 @@ Create either file first if missing (CLAUDE.md → index.md and log.md). Update 
 - skipped: <k> (newsletter/notification)
 ```
 
+Then run `<python> $S/pending.py link-threads` once (it points each cited email back at its thread page,
+for the Act column in `bases/Emails.base`; an interrupted run is caught up next time). Mention its
+result only if something was cleared or it printed a `!` warning.
+
 Then check the bookkeeping: run `<python> $S/lint_vault.py --json` and, for the pages and emails in
 this run's log entry only, fix the `issues` under "Pages not listed in wiki/index.md", "Thread
 pages with no `sources`", "Compiled emails that no wiki page cites" and "Broken wikilinks".

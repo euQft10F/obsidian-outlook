@@ -53,6 +53,16 @@ def test_frontmatter_round_trip(vaultlib, tmp_path):
     assert note.read_text(encoding="utf-8").endswith("---\nbody")
 
 
+def test_remove_frontmatter_field(vaultlib, tmp_path):
+    note = tmp_path / "n.md"
+    note.write_text('---\ntype: email\nwiki_thread: "[[T]]"\nwiki_status: compiled\n---\n\nbody\n', encoding="utf-8")
+    assert vaultlib.remove_frontmatter_field(note, "wiki_thread")
+    assert vaultlib.parse_frontmatter(note.read_text(encoding="utf-8")) == {"type": "email", "wiki_status": "compiled"}
+    assert not vaultlib.remove_frontmatter_field(note, "wiki_thread")
+    assert vaultlib.remove_frontmatter_field(note, "wiki_status")  # last line of the block
+    assert note.read_text(encoding="utf-8") == "---\ntype: email\n---\n\nbody\n"
+
+
 def test_wikilinks_ignore_code_and_strip_aliases(vaultlib):
     text = "[[A|alias]] and [[B#head]] and `[[code]]` and ![[img.png]]\n```\n[[block]]\n```"
     assert vaultlib.wikilinks(text) == ["A", "B", "img.png"]
@@ -263,6 +273,80 @@ def test_pending_mark_refusals(pending, vault, monkeypatch):
             run_cli(pending, monkeypatch, *bad_argv)
         assert refused.value.code == 2
     assert 'wiki_status: "pending"' in note.read_text(encoding="utf-8")
+
+
+def write_page(vault, folder, name, page_type, sources=(), last_activity="2026-10-06"):
+    lines = ["---", f"type: {page_type}", f"last_activity: {last_activity}", "sources:",
+             *(f'  - "[[{source}]]"' for source in sources), "---", ""]
+    path = vault / "wiki" / folder / f"{name}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def link_threads(pending, vault, monkeypatch, capsys):
+    capsys.readouterr()
+    assert run_cli(pending, monkeypatch, "--vault", str(vault), "link-threads", "--json") == 0
+    return json.loads(capsys.readouterr().out)
+
+
+def wiki_thread(note, vaultlib):
+    return vaultlib.parse_frontmatter(note.read_text(encoding="utf-8")).get("wiki_thread")
+
+
+def test_link_threads_sets_and_is_idempotent(pending, vaultlib, vault, monkeypatch, capsys):
+    cited = write_note(vault, "2026-10-05 0814 Shah, Priya - Budget", wiki_status="compiled")
+    other = write_note(vault, "2026-10-06 0900 Reid, Tom - Lunch", wiki_status="pending")
+    write_page(vault, "threads", "Budget (2026-10)", "thread", [cited.stem])
+    assert link_threads(pending, vault, monkeypatch, capsys)["set"] == 1
+    assert wiki_thread(cited, vaultlib) == "[[Budget (2026-10)]]" and wiki_thread(other, vaultlib) is None
+    assert 'wiki_status: "compiled"' in cited.read_text(encoding="utf-8")  # rest of the note untouched
+
+    mtime = cited.stat().st_mtime_ns
+    assert link_threads(pending, vault, monkeypatch, capsys) == {
+        "set": 0, "cleared": 0, "unchanged": 1, "dry_run": False, "warnings": []}
+    assert cited.stat().st_mtime_ns == mtime
+
+
+def test_link_threads_follows_merges_and_clears(pending, vaultlib, vault, monkeypatch, capsys):
+    first = write_note(vault, "a", wiki_status="compiled")
+    second = write_note(vault, "b", wiki_status="compiled")
+    old_page = write_page(vault, "threads", "Old", "thread", ["a", "raw/emails/2026/10/b.md"])
+    link_threads(pending, vault, monkeypatch, capsys)
+    assert wiki_thread(second, vaultlib) == "[[Old]]"  # path-style source links resolve too
+
+    old_page.unlink()  # merged into "New", which keeps only one of the emails
+    write_page(vault, "threads", "New", "thread", ["a"])
+    result = link_threads(pending, vault, monkeypatch, capsys)
+    assert (result["set"], result["cleared"]) == (1, 1)
+    assert wiki_thread(first, vaultlib) == "[[New]]" and wiki_thread(second, vaultlib) is None
+    assert "wiki_thread" not in second.read_text(encoding="utf-8")
+
+
+def test_link_threads_ignores_non_thread_pages(pending, vaultlib, vault, monkeypatch, capsys):
+    note = write_note(vault, "a", wiki_status="compiled")
+    write_page(vault, "people", "Priya Shah", "person", ["a"])
+    write_page(vault, "threads", "Stray", "project", ["a"])
+    assert link_threads(pending, vault, monkeypatch, capsys)["set"] == 0
+    assert wiki_thread(note, vaultlib) is None
+
+
+def test_link_threads_double_citation_prefers_newest(pending, vaultlib, vault, monkeypatch, capsys):
+    note = write_note(vault, "a", wiki_status="compiled")
+    write_page(vault, "threads", "Older", "thread", ["a"], last_activity="2026-10-01")
+    write_page(vault, "threads", "Newer", "thread", ["a"], last_activity="2026-10-09")
+    result = link_threads(pending, vault, monkeypatch, capsys)
+    assert wiki_thread(note, vaultlib) == "[[Newer]]"
+    assert result["warnings"] == ["a is cited by Newer and Older; linked to Newer"]
+
+
+def test_link_threads_dry_run_writes_nothing(pending, vault, monkeypatch, capsys):
+    note = write_note(vault, "a", wiki_status="compiled")
+    write_page(vault, "threads", "T", "thread", ["a"])
+    capsys.readouterr()
+    run_cli(pending, monkeypatch, "--vault", str(vault), "link-threads", "--dry-run")
+    assert "Would link: 1 set" in capsys.readouterr().out
+    assert "wiki_thread" not in note.read_text(encoding="utf-8")
 
 
 def test_scripts_reject_abbreviated_vault(msg_to_md, pending, lint_vault, vault, monkeypatch):

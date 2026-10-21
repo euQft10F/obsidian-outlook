@@ -233,6 +233,21 @@ def set_frontmatter_field(path: Path, key: str, value: str) -> bool:
     return True
 
 
+def remove_frontmatter_field(path: Path, key: str) -> bool:
+    """Delete one top-level scalar field from a note's frontmatter. False if it was not there."""
+    text = path.read_text(encoding="utf-8")
+    match = FRONTMATTER_RE.match(text)
+    if not match:
+        return False
+    block = match.group(1)
+    new_block, count = re.subn(rf"^{re.escape(key)}:.*(?:\r?\n|\Z)", "", block, count=1, flags=re.M)
+    if not count:
+        return False
+    start, end = match.span(1)
+    path.write_text(text[:start] + new_block.rstrip("\r\n") + text[end:], encoding="utf-8")
+    return True
+
+
 def wikilinks(text: str) -> list[str]:
     """Wikilink targets in a note, ignoring examples inside code spans/blocks."""
     return [target.strip() for target in WIKILINK_RE.findall(CODE_SPAN_RE.sub("", text))]
