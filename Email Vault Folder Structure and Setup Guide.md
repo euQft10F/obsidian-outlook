@@ -116,6 +116,7 @@ Setup takes about 15 minutes once; after that the daily loop is export, `/email-
 | Anytime | `/email-ask what did Tom say about the deadline?` or `/email-ask who else is involved in Q3 hedging?` Say "save it" to keep the answer in `wiki/answers/` |
 | Weekly | `/email-lint`: fixes broken links and gaps itself, asks before merging duplicate people or closing threads |
 | Backlog | Export a month at a time, then `/email-ingest all` per batch |
+| Space low | `/email-prune attachments of mail before 2025-01-01` or `/email-prune newsletters`: previews first, deletes permanently only after you confirm |
 
 ### Optional automation
 

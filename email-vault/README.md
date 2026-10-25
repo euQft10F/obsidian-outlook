@@ -14,6 +14,7 @@ Outlook ──save .msg──▶ 00-inbox/ ──msg_to_md.py──▶ raw/email
                                                         │
                               /email-ask  ◀─────────────┤──────────▶  Obsidian: Bases, graph, search
                               /email-lint (health check) · /email-today (morning brief) · /email-draft (reply draft)
+                              /email-prune (delete emails or their originals/attachments to free space)
 ```
 
 Why two stages: conversion is cheap, exact and repeatable (headers, threading, attachments,
@@ -73,6 +74,7 @@ the LLM's job, and its output is plain markdown you can read, edit and version.
 | Draft | `/email-draft Q3 budget agree to the 14 Oct deadline` — writes a reply to `wiki/drafts/` plus a linked `.msg` (classic Outlook) that opens as an unsent reply under the original; nothing is sent |
 | Browse | Obsidian: `bases/Threads.base` (I owe / Team owes / Waiting / Overdue / Due this week / Nudge / By project), `bases/People.base`, `bases/Emails.base` (its Act column and Needs attention view mark emails of `open` threads; its Original column, like a note's `source_file`, opens the archived `.msg` in Outlook; needs "Detect all file extensions", on in the shipped `.obsidian/app.json`), graph view, backlinks |
 | Maintain | `/email-lint` weekly (its report starts with a Setup section while the CLAUDE.md Owner section is unfilled) |
+| Delete / free space | `/email-prune newsletters older than 2026-01-01` · `/email-prune attachments of mail before 2025-06-01` — previews what goes and the MB freed, then deletes permanently once you confirm (see below) |
 
 Keep Claude Code and Obsidian side by side, as Karpathy does: Claude edits, Obsidian shows the
 pages updating live. Good answers get filed into `wiki/answers/`, so your questions compound
@@ -80,6 +82,27 @@ in the vault too.
 
 For a first backlog of hundreds of emails, export a month at a time and run
 `/email-ingest all` per batch; compiling is where the tokens go, conversion is free.
+
+### Deleting emails and freeing space
+
+Most of the vault's size is in `raw/msg/` (the originals, which also contain every attachment) and
+`raw/attachments/`; the notes themselves are small. `/email-prune` runs
+`.claude/skills/email-ingest/scripts/prune.py`, which removes one of three levels:
+
+| Level | Removes | Keeps |
+|---|---|---|
+| `originals` | the archived .msg/.eml | the note, attachments, all wiki links |
+| `attachments` | originals + attachment files and extracted text | the note (bullets say "removed"), wiki links to the note |
+| `all` (default) | everything, the note too | nothing; wiki links to it become plain text "(deleted)" |
+
+Emails are chosen by path, `--thread`, `--before`, `--status`, `--reason` (e.g. newsletter) and `--from`
+(an address or `@domain`), combined with AND; `--duplicates` empties `raw/msg/_duplicates/`. `preview` shows
+what would go; `apply` deletes it, with no trash, and logs it to `raw/.prune-log.jsonl`. A file it can't
+delete (e.g. a .msg open in Outlook) is listed and left in place, and the index, notes and wiki still match
+what was actually deleted; run it again once the file is free. Emails forwarded as
+attachments go with the email that contains them. `--before` never selects a note without a readable `date`. After `all`, dropping the same file into `00-inbox/`
+converts it again. The Outlook exporter still remembers it, though, so a `--days`/`--since` export skips it;
+use `--selection --force` to bring it back. From a terminal: `uv run python .claude/skills/email-ingest/scripts/prune.py --help`.
 
 ### Exporting from Outlook
 
@@ -129,7 +152,7 @@ bases/                    Obsidian Bases dashboards
 tools/                    Outlook exporter (export_outlook_msg.py)
 pyproject.toml  uv.lock   Python environment for uv (requirements.txt for uv pip / pip)
 CLAUDE.md                 the schema: rules, page templates, triage — edit it as you go
-.claude/skills/           email-ingest (+ scripts/), email-ask, email-lint, email-today, email-draft
+.claude/skills/           email-ingest (+ scripts/), email-ask, email-lint, email-today, email-draft, email-prune
 ```
 
 Design choices worth knowing:
@@ -189,6 +212,8 @@ Everything Claude needs is in the vault:
   - `/email-draft` writes `wiki/drafts/` and the log, and runs `draft_to_msg.py` to save the .msg
     next to the draft (Outlook `SaveAs` to a file only; it never calls `Send` or saves to the mailbox).
   - `/email-today` writes nothing.
+  - `/email-prune` runs `prune.py preview` freely and edits `wiki/`. It does not pre-approve
+    `prune.py apply`, so every deletion asks you, even inside the skill.
 
   Skill rules only add permissions, so keeping settings this narrow is what makes the skill
   scopes real. Wiki edits outside a skill ask first, and so does anything outside `wiki/`, so text

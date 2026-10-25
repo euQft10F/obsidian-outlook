@@ -25,11 +25,14 @@ from vaultlib import (
     INBOX_DIRNAME,
     Frontmatter,
     check_setup,
+    file_link_keys,
     find_vault,
     iter_files,
     iter_notes,
+    link_key,
     owner_addresses,
     parse_frontmatter,
+    read_frontmatter,
     team_addresses,
     utf8_stdout,
     wikilinks,
@@ -72,10 +75,7 @@ def build_link_targets(vault: Path) -> set[str]:
     """Every name an Obsidian wikilink could resolve to (lowercased path and bare filename, with and without .md)."""
     targets: set[str] = set()
     for file in iter_files(vault):
-        posix_path = file.relative_to(vault).as_posix().lower()
-        targets.update({posix_path, file.name.lower()})
-        if file.suffix == ".md":
-            targets.update({posix_path[:-3], file.stem.lower()})
+        targets.update(file_link_keys(file.relative_to(vault).as_posix()))
     return targets
 
 
@@ -101,8 +101,7 @@ def analyse_links(vault: Path, pages: list[WikiPage], targets: set[str]) -> Link
     for page in pages:
         is_draft = page.frontmatter.get("type") == "draft"  # transient: links neither cite nor rescue orphans
         for link in wikilinks(page.text):
-            key = link.lower().rstrip("/")
-            key = key.removesuffix(".md")
+            key = link_key(link)
             if key not in targets:
                 broken.append((page.path.relative_to(vault).as_posix(), link))
                 continue
@@ -173,7 +172,7 @@ def scan_raw_emails(vault: Path, cited_email_stems: set[str], excluded_senders: 
     status_counts: dict[str, int] = defaultdict(int)
     sender_counts: dict[str, int] = defaultdict(int)
     for path in iter_notes(vault / "raw" / "emails"):
-        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8"))
+        frontmatter = read_frontmatter(path)
         status = frontmatter.get("wiki_status", "pending")
         status_counts[status] += 1
         sender = str(frontmatter.get("from_email", "")).lower()

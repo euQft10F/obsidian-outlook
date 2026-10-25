@@ -20,23 +20,22 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from vaultlib import (
+    EmailNoteRefusedError,
     Frontmatter,
     find_vault,
+    iter_email_frontmatter,
     iter_notes,
     parse_frontmatter,
     remove_frontmatter_field,
+    resolve_email_note,
     set_frontmatter_field,
+    source_stems,
     utf8_stdout,
-    wikilinks,
 )
 
 WIKI_STATUSES = ("pending", "compiled", "skipped")
 MAX_REASON_LENGTH = 40
 BYTES_PER_KB = 1000
-
-
-class MarkRefusedError(Exception):
-    """A path given to `mark` is not an email note we are willing to touch."""
 
 
 @dataclass(slots=True)
@@ -61,10 +60,8 @@ class PendingThread:
 
 
 def iter_email_notes(vault: Path) -> Iterator[EmailNote]:
-    for path in iter_notes(vault / "raw" / "emails"):
-        frontmatter = parse_frontmatter(path.read_text(encoding="utf-8"))
-        if frontmatter.get("type") == "email":
-            yield EmailNote(path, frontmatter)
+    for path, frontmatter in iter_email_frontmatter(vault):
+        yield EmailNote(path, frontmatter)
 
 
 def group_pending_by_thread(vault: Path) -> list[PendingThread]:
@@ -112,26 +109,13 @@ def list_pending(vault: Path, limit: int | None, as_json: bool) -> None:
             print(f"  - {email['date']}  {email['from']}  ({email['direction']}, {size_kb} KB)  {email['path']}")
 
 
-def resolve_email_note(vault: Path, raw_path: str) -> Path:
-    """Absolute `.md` path under raw/emails/; refuses anything that is not an email note."""
-    path = Path(raw_path) if Path(raw_path).is_absolute() else vault / raw_path
-    if not path.suffix:
-        path = path.with_suffix(".md")
-    path = path.resolve()
-    if not path.is_relative_to((vault / "raw" / "emails").resolve()) or path.suffix.lower() != ".md":
-        raise MarkRefusedError(f"refused (not under raw/emails/): {raw_path}")
-    if path.exists() and parse_frontmatter(path.read_text(encoding="utf-8")).get("type") != "email":
-        raise MarkRefusedError(f"refused (not an email note): {raw_path}")
-    return path
-
-
 def mark_notes(vault: Path, status: str, raw_paths: list[str], reason: str | None) -> int:
     """Set `wiki_status` on each note; returns 1 if any path was refused or missing."""
     failures = 0
     for raw_path in raw_paths:
         try:
             path = resolve_email_note(vault, raw_path)
-        except MarkRefusedError as refusal:
+        except EmailNoteRefusedError as refusal:
             print(f"  ! {refusal}")
             failures += 1
             continue
@@ -153,13 +137,10 @@ def thread_links_wanted(vault: Path, email_stems: set[str]) -> tuple[dict[str, s
         frontmatter = parse_frontmatter(path.read_text(encoding="utf-8"))
         if frontmatter.get("type") != "thread":
             continue
-        sources = frontmatter.get("sources") or []
         claim = (str(frontmatter.get("last_activity", "")), path.stem)
-        for source in sources if isinstance(sources, list) else [sources]:
-            for target in wikilinks(str(source)):
-                email_stem = target.rsplit("/", 1)[-1].removesuffix(".md").lower()
-                if email_stem in email_stems:
-                    claims[email_stem].add(claim)
+        for email_stem in source_stems(frontmatter):
+            if email_stem in email_stems:
+                claims[email_stem].add(claim)
     wanted, warnings = {}, []
     for email_stem, threads in claims.items():
         thread = max(threads)[1]

@@ -11,7 +11,8 @@ from pathlib import Path
 Frontmatter = dict[str, str | bool | list[str]]
 
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n", re.S)
-WIKILINK_RE = re.compile(r"!?\[\[([^\]\|#\^]+)(?:[#\^][^\]\|]*)?(?:\|[^\]]*)?\]\]")
+# Group 1 the link target, group 2 the alias (None without one).
+WIKILINK_RE = re.compile(r"!?\[\[([^\]\|#\^]+)(?:[#\^][^\]\|]*)?(?:\|([^\]]*))?\]\]")
 INBOX_DIRNAME = "00-inbox"
 FAILED_DIRNAME = "_failed"  # inside the inbox: files that would not parse
 EMAIL_SUFFIXES = (".msg", ".eml")  # what the inbox accepts
@@ -250,7 +251,70 @@ def remove_frontmatter_field(path: Path, key: str) -> bool:
 
 def wikilinks(text: str) -> list[str]:
     """Wikilink targets in a note, ignoring examples inside code spans/blocks."""
-    return [target.strip() for target in WIKILINK_RE.findall(CODE_SPAN_RE.sub("", text))]
+    return [link.group(1).strip() for link in WIKILINK_RE.finditer(CODE_SPAN_RE.sub("", text))]
+
+
+def link_key(target: str) -> str:
+    """A wikilink target lowercased and without `.md`, comparable with file_link_keys. A trailing backslash is
+    the escape of a table link's alias pipe (`[[x\\|alias]]`), not part of the name."""
+    return target.strip().rstrip("\\").lower().rstrip("/").removesuffix(".md")
+
+
+def source_stems(frontmatter: Frontmatter) -> list[str]:
+    """Lowercased file names (link_key, no folders) of the notes a page lists in `sources`."""
+    sources = frontmatter.get("sources") or []
+    return [link_key(target).rsplit("/", 1)[-1]
+            for source in (sources if isinstance(sources, list) else [sources])
+            for target in wikilinks(str(source))]
+
+
+def file_link_keys(relative: str) -> set[str]:
+    """Every link_key that resolves to the file at `relative` (posix, from the vault root): its path and bare
+    name, and for a note also both without `.md`."""
+    path = relative.lower()
+    name = path.rsplit("/", 1)[-1]
+    keys = {path, name}
+    if relative.endswith(".md"):
+        keys.update({path[:-3], name[:-3]})
+    return keys
+
+
+class EmailNoteRefusedError(Exception):
+    """A path given on the command line is not an email note the scripts are willing to touch."""
+
+
+def resolve_email_note(vault: Path, raw_path: str) -> Path:
+    """Absolute `.md` path under raw/emails/; refuses anything that is not an email note."""
+    path = Path(raw_path) if Path(raw_path).is_absolute() else vault / raw_path
+    if path.suffix.lower() != ".md":  # a stem as written in links, which may hold dots ("v1.2 budget")
+        path = path.with_name(path.name + ".md")
+    path = path.resolve()
+    if not path.is_relative_to((vault / "raw" / "emails").resolve()):
+        raise EmailNoteRefusedError(f"refused (not under raw/emails/): {raw_path}")
+    if path.exists() and read_frontmatter(path).get("type") != "email":
+        raise EmailNoteRefusedError(f"refused (not an email note): {raw_path}")
+    return path
+
+
+def read_frontmatter(path: Path) -> Frontmatter:
+    """parse_frontmatter for a note, reading only its frontmatter block (raw notes can be long)."""
+    lines = []
+    with path.open(encoding="utf-8") as note:
+        for line in note:
+            lines.append(line)
+            if line.rstrip("\r\n") == "---" and len(lines) > 1:
+                break
+            if len(lines) == 1 and line.rstrip("\r\n") != "---":
+                return {}
+    return parse_frontmatter("".join(lines))
+
+
+def iter_email_frontmatter(vault: Path) -> Iterator[tuple[Path, Frontmatter]]:
+    """(path, frontmatter) of every `type: email` note under raw/emails/, sorted by path."""
+    for path in iter_notes(vault / "raw" / "emails"):
+        frontmatter = read_frontmatter(path)
+        if frontmatter.get("type") == "email":
+            yield path, frontmatter
 
 
 def iter_files(root: Path) -> Iterator[Path]:

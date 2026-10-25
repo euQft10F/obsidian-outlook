@@ -40,6 +40,11 @@ def lint_vault(vaultlib):
 
 
 @pytest.fixture(scope="session")
+def prune(msg_to_md):
+    return load_script("prune")
+
+
+@pytest.fixture(scope="session")
 def draft_to_msg(vaultlib):
     return load_script("draft_to_msg", SKILLS_DIR / "email-draft" / "scripts")
 

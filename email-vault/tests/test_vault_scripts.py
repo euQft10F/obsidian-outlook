@@ -387,6 +387,22 @@ def test_lint_accepts_unindexed_draft_pages(lint_vault, vault, monkeypatch, caps
     assert "wiki/drafts/Draft - Budget (2026-10).md -> [[Typo]]" in issues[lint_vault.BROKEN_LINKS]
 
 
+def test_lint_reads_table_links_with_escaped_pipe(lint_vault, vault, monkeypatch, capsys):
+    write_note(vault, "2026-10-05 0814 Shah, Priya - Budget")
+    (vault / "wiki" / "people" / "Priya Shah.md").write_text(
+        "---\ntype: person\n---\n| Date | Email |\n|---|---|\n| 5 Oct | [[2026-10-05 0814 Shah, Priya - Budget\\|budget]] |\n",
+        encoding="utf-8")
+    run_cli(lint_vault, monkeypatch, "--vault", str(vault), "--json")
+    assert lint_vault.BROKEN_LINKS not in json.loads(capsys.readouterr().out)["issues"]
+
+
+def test_pending_mark_accepts_stem_with_dots(pending, vault, monkeypatch):
+    note = write_note(vault, "2026-10-05 0814 Shah, Priya - Q3 v1.2 budget", wiki_status="pending")
+    stem_path = note.relative_to(vault).as_posix().removesuffix(".md")
+    assert run_cli(pending, monkeypatch, "--vault", str(vault), "mark", "compiled", stem_path) == 0
+    assert "wiki_status: compiled" in note.read_text(encoding="utf-8")
+
+
 # ---------------------------------------------------------------- owner setup
 
 TEMPLATE_OWNER = "## Owner (fill in)\n\n- Owner: <your name>\n- Owner's addresses: <you@work.com>\n"
